@@ -1,0 +1,12 @@
+# binaries
+a.out
+main
+
+# object files
+*.o
+
+# sed files created from make
+*.d
+
+# gameboy ROM files
+*.gb
