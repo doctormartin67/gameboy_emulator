@@ -9,6 +9,16 @@ static const Op ops[0x100] = {
 	[0x0e] = {.kind = LD_R_IMM8, .reg1 = REG_C},
 	[0xaf] = {.kind = XOR_R, .reg1 = REG_A}, 
 	[0xc3] = {.kind = JP_IMM16},
+	[0xf3] = {.kind = DI},
+};
+
+static const char *const op_names[0x100] = {
+	[0x00] = "NOP",
+	[0x05] = "DEC",
+	[0x0e] = "LD",
+	[0xaf] = "XOR",
+	[0xc3] = "JP",
+	[0xf3] = "DI",
 };
 
 Op get_op_from_opcode(uint8_t opcode)
@@ -19,4 +29,10 @@ Op get_op_from_opcode(uint8_t opcode)
 		exit(1);
 	}
 	return op;
+}
+
+const char *op_name(uint8_t opcode)
+{
+	const char *name = op_names[opcode];
+	return name;
 }

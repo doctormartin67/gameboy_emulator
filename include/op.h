@@ -149,5 +149,6 @@ typedef struct Op {
 } Op;
 
 Op get_op_from_opcode(uint8_t opcode);
+const char *op_name(uint8_t opcode);
 
 #endif
