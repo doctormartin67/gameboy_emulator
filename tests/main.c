@@ -19,7 +19,6 @@ int main(int argc, char *argv[])
 
 	Cpu cpu = {.regs = {.pc = 0x100}};
 	while (1) {
-		(void)getchar();
 		cpu_print(&cpu, cart);
 		next_op(&cpu, cart);
 	}

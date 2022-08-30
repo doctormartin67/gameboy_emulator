@@ -144,8 +144,6 @@ typedef struct Op {
 	OpKind kind;
 	Reg reg1;
 	Reg reg2;
-	uint8_t imm8;
-	uint16_t imm16;
 } Op;
 
 Op get_op_from_opcode(uint8_t opcode);

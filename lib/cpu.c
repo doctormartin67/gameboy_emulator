@@ -14,13 +14,11 @@
 #define LO(a) a
 #define HI(a) a << 8
 
-#if 0
 static uint8_t next_imm8(Cpu *cpu, const Cartridge *cart)
 {
 	uint8_t imm = bus_read(cart, cpu->regs.pc++);
 	return imm;
 }
-#endif
 
 static uint16_t next_imm16(Cpu *cpu, const Cartridge *cart)
 {
@@ -54,16 +52,16 @@ static uint16_t read_reg16(const Cpu *cpu, Reg reg)
 			return LO((uint16_t)cpu->regs.l);
 		case REG_AF:
 			return HI((uint16_t)cpu->regs.a)
-				& LO((uint16_t)cpu->regs.f);
+				| LO((uint16_t)cpu->regs.f);
 		case REG_BC:
 			return HI((uint16_t)cpu->regs.b)
-				& LO((uint16_t)cpu->regs.c);
+				| LO((uint16_t)cpu->regs.c);
 		case REG_DE:
 			return HI((uint16_t)cpu->regs.d)
-				& LO((uint16_t)cpu->regs.e);
+				| LO((uint16_t)cpu->regs.e);
 		case REG_HL:
 			return HI((uint16_t)cpu->regs.h)
-				& LO((uint16_t)cpu->regs.l);
+				| LO((uint16_t)cpu->regs.l);
 		case REG_SP:
 			return cpu->regs.sp;
 		case REG_PC:
@@ -194,6 +192,19 @@ static void write_reg16(Cpu *cpu, Reg reg, uint16_t word)
 	}
 }
 
+static void write_areg_reg(Cpu *cpu, Cartridge *cart)
+{
+	uint16_t reg1 = read_reg16(cpu, cpu->op.reg1);
+	uint16_t reg2 = read_reg8(cpu, cpu->op.reg2);
+	bus_write(cart, reg1, reg2);
+}
+
+static void write_reg_areg(Cpu *cpu, Cartridge *cart)
+{
+	uint16_t reg2 = read_reg16(cpu, cpu->op.reg2);
+	write_reg8(cpu, cpu->op.reg1, bus_read(cart, reg2));
+}
+
 /*
  * 0: set to 0
  * 1: set to 1
@@ -258,10 +269,13 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 	cpu->regs.pc = pc;
 }
 
-static void op_xor_reg(Cpu *cpu)
+/*
+ * xor reg with itself, returns result for z flag (set bit on)
+ */
+static uint8_t op_xor_reg(Cpu *cpu)
 {
 	assert(XOR_R == cpu->op.kind);
-	uint16_t tmp = 0;
+	uint16_t z = 0;
 	switch (cpu->op.reg1) {
 		case REG_NONE:
 			assert(0);
@@ -274,8 +288,7 @@ static void op_xor_reg(Cpu *cpu)
 		case REG_E:
 		case REG_H:
 		case REG_L:
-			tmp = read_reg8(cpu, cpu->op.reg1);
-			write_reg8(cpu, cpu->op.reg1, tmp ^ tmp);
+			z = read_reg8(cpu, cpu->op.reg1);
 			break;
 		case REG_AF:
 		case REG_BC:
@@ -283,17 +296,20 @@ static void op_xor_reg(Cpu *cpu)
 		case REG_HL:
 		case REG_SP:
 		case REG_PC:
-			tmp = read_reg16(cpu, cpu->op.reg1);
-			write_reg16(cpu, cpu->op.reg1, tmp ^ tmp);
+			z = read_reg16(cpu, cpu->op.reg1);
 			break;
 	}
+	z ^= z;
+	write_reg8(cpu, cpu->op.reg1, z);
+	return z;
 }
 
 static void op_xor(Cpu *cpu)
 {
+	uint8_t z = 0;
 	switch (cpu->op.kind) {
 		case XOR_R:
-			op_xor_reg(cpu);
+			z = !op_xor_reg(cpu);
 			break;
 		case XOR_IMM8:
 		case XOR_ARR:
@@ -303,48 +319,101 @@ static void op_xor(Cpu *cpu)
 			assert(0);
 			break;
 	}
-	set_flags(cpu, 1, 0, 0, 0);
+	set_flags(cpu, z, 0, 0, 0);
 }
 
-#if 0
-static void op_ld_reg_reg(Cpu *cpu)
+static void op_ld(Cpu *cpu, Cartridge *cart)
 {
-
-}
-
-static void op_ld(Cpu *cpu, const Cartridge *cart)
-{
+	uint16_t reg1 = 0;
+	uint16_t reg2 = 0;
+	uint16_t imm = 0;
 	switch (cpu->op.kind) {
 		case LD_R_R:
-			op_ld_reg_reg(cpu);
+			reg2 = read_reg8(cpu, cpu->op.reg2);
+			write_reg8(cpu, cpu->op.reg1, reg2);
 			break;
 		case LD_R_IMM8:
+			imm = next_imm8(cpu, cart);
+			write_reg8(cpu, cpu->op.reg1, imm);
+			break;
 		case LD_R_AIMM16:
+			imm = bus_read(cart, next_imm16(cpu, cart));
+			write_reg8(cpu, cpu->op.reg1, imm);
+			break;
 		case LD_AR_R:
+			reg1 = read_reg16(cpu, cpu->op.reg1);
+			reg2 = read_reg8(cpu, cpu->op.reg2);
+			bus_write(cart, 0xff00 | reg1, reg2);
+			break;
 		case LD_RR_IMM16:
+			imm = next_imm16(cpu, cart);
+			write_reg16(cpu, cpu->op.reg1, imm);
+			break;
 		case LD_R_AR:
+			reg2 = 0xff00 | read_reg16(cpu, cpu->op.reg2);
+			write_reg8(cpu, cpu->op.reg1, bus_read(cart, reg2));
+			break;
 		case LD_ARR_IMM8:
+			imm = next_imm8(cpu, cart);
+			reg1 = read_reg16(cpu, cpu->op.reg1);
+			bus_write(cart, reg1, imm);
+			break;
 		case LD_ARR_R:
+			write_areg_reg(cpu, cart);
+			break;
 		case LD_ARRI_R:
+			write_areg_reg(cpu, cart);
+			write_reg16(cpu, cpu->op.reg1, reg1 + 1);
+			break;
 		case LD_ARRD_R:
+			write_areg_reg(cpu, cart);
+			write_reg16(cpu, cpu->op.reg1, reg1 - 1);
+			break;
 		case LD_AIMM16_R:
+			imm = next_imm16(cpu, cart);
+			reg2 = read_reg8(cpu, cpu->op.reg2);
+			bus_write(cart, imm, reg2);
+			break;
 		case LD_AIMM16_RR:
+			imm = next_imm16(cpu, cart);
+			reg2 = read_reg16(cpu, cpu->op.reg2);
+			bus_write(cart, imm, reg2);
+			break;
 		case LD_R_ARR:
+			write_reg_areg(cpu, cart);
+			break;
 		case LD_R_ARRI:
+			write_reg_areg(cpu, cart);
+			write_reg16(cpu, cpu->op.reg2, reg2 + 1);
+			break;
 		case LD_R_ARRD:
+			write_reg_areg(cpu, cart);
+			write_reg16(cpu, cpu->op.reg2, reg2 - 1);
+			break;
 		case LD_RR_RR_IMM8:
-		case LDH_AIMM8_R:
-		case LDH_R_AIMM8:
+			imm = next_imm8(cpu, cart);
+			reg2 = read_reg16(cpu, cpu->op.reg2);
+			write_reg16(cpu, cpu->op.reg1, reg2 + (int8_t)imm);
+			// TODO: set flags, but I don't understand how they
+			// work
 			assert(0);
+			break;
+		case LDH_AIMM8_R:
+			imm = next_imm8(cpu, cart);
+			reg2 = read_reg8(cpu, cpu->op.reg2);
+			bus_write(cart, 0xff00 | imm, reg2);
+			break;
+		case LDH_R_AIMM8:
+			imm = 0xff00 | next_imm8(cpu, cart);
+			write_reg8(cpu, cpu->op.reg1, bus_read(cart, imm));
 			break;
 		default:
 			assert(0);
 			break;
 	}
 }
-#endif
 
-void next_op(Cpu *cpu, const Cartridge *cart)
+void next_op(Cpu *cpu, Cartridge *cart)
 {
 	cpu->opcode = bus_read(cart, cpu->regs.pc++);
 	cpu->op = get_op_from_opcode(cpu->opcode);
@@ -390,7 +459,7 @@ void next_op(Cpu *cpu, const Cartridge *cart)
 		case LD_RR_RR_IMM8:
 		case LDH_AIMM8_R:
 		case LDH_R_AIMM8:
-			assert(0);
+			op_ld(cpu, cart);
 			break;
 		case ADD_R_R:
 		case ADD_R_IMM8:

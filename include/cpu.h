@@ -25,7 +25,7 @@ typedef struct Cpu {
 	uint8_t opcode;
 	Op op;
 } Cpu;
-void next_op(Cpu *cpu, const Cartridge *cart);
+void next_op(Cpu *cpu, Cartridge *cart);
 void cpu_print(const Cpu *cpu, const Cartridge *cart);
 
 #endif
