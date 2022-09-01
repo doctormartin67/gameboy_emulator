@@ -28,6 +28,7 @@ typedef enum {
 	LD_R_ARRI,
 	LD_R_ARRD,
 	LD_RR_RR_IMM8,
+	LD_RR_RR,
 	LDH_AIMM8_R,
 	LDH_R_AIMM8,
 

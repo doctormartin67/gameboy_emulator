@@ -136,7 +136,7 @@ Cartridge *cart_load(const char *file_name)
 	cart->rom_size = ftell(fp);	
 	rewind(fp);
 
-	cart->rom_data = malloc(cart->rom_size);
+	cart->rom_data = calloc(cart->rom_size, sizeof(*cart->rom_data));
 	if (1 != fread(cart->rom_data, cart->rom_size, 1, fp)) {
 		printf("Unable to read data from file '%s'\n", file_name);
 		exit(1);

@@ -18,7 +18,7 @@ LDFLAGS = -L$(LIB)
 COMPILE.c = $(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) $(TARGET_ARCH) -c
 
 # ---Object files---
-OBJS = cartridge.o bus.o cpu.o op.o
+OBJS = cartridge.o bus.o cpu.o op.o ram.o
 .DELETE_ON_ERROR: $(OBJS)
 
 # ---vpath---
