@@ -12,26 +12,26 @@ static const char *const cart_types[] = {
 	[0x06] = "MBC2+BATTERY",
 	[0x08] = "ROM+RAM 1",
 	[0x09] = "ROM+RAM+BATTERY 1",
-	[0x0B] = "MMM01",
-	[0x0C] = "MMM01+RAM",
-	[0x0D] = "MMM01+RAM+BATTERY",
-	[0x0F] = "MBC3+TIMER+BATTERY",
+	[0x0b] = "MMM01",
+	[0x0c] = "MMM01+RAM",
+	[0x0d] = "MMM01+RAM+BATTERY",
+	[0x0f] = "MBC3+TIMER+BATTERY",
 	[0x10] = "MBC3+TIMER+RAM+BATTERY 2",
 	[0x11] = "MBC3",
 	[0x12] = "MBC3+RAM 2",
 	[0x13] = "MBC3+RAM+BATTERY 2",
 	[0x19] = "MBC5",
-	[0x1A] = "MBC5+RAM",
-	[0x1B] = "MBC5+RAM+BATTERY",
-	[0x1C] = "MBC5+RUMBLE",
-	[0x1D] = "MBC5+RUMBLE+RAM",
-	[0x1E] = "MBC5+RUMBLE+RAM+BATTERY",
+	[0x1a] = "MBC5+RAM",
+	[0x1b] = "MBC5+RAM+BATTERY",
+	[0x1c] = "MBC5+RUMBLE",
+	[0x1d] = "MBC5+RUMBLE+RAM",
+	[0x1e] = "MBC5+RUMBLE+RAM+BATTERY",
 	[0x20] = "MBC6",
 	[0x22] = "MBC7+SENSOR+RUMBLE+RAM+BATTERY",
-	[0xFC] = "POCKET CAMERA",
-	[0xFD] = "BANDAI TAMA5",
-	[0xFE] = "HuC3",
-	[0xFF] = "HuC1+RAM+BATTERY",
+	[0xfc] = "POCKET CAMERA",
+	[0xfd] = "BANDAI TAMA5",
+	[0xfe] = "HuC3",
+	[0xff] = "HuC1+RAM+BATTERY",
 };
 
 static const char *const lic_codes[] = {
@@ -95,7 +95,7 @@ static const char *const lic_codes[] = {
 	[0x96] = "Yonezawa/s’pal",
 	[0x97] = "Kaneko",
 	[0x99] = "Pack in soft",
-	[0xA4] = "Konami (Yu-Gi-Oh!)",
+	[0xa4] = "Konami (Yu-Gi-Oh!)",
 };
 
 static const char *get_lic_code(const Cartridge *cart)
@@ -154,9 +154,10 @@ Cartridge *cart_load(const char *file_name)
  */
 unsigned cart_check(const Cartridge *cart)
 {
+	assert(cart->header->checksum == cart->rom_data[0x014d]);
 	uint8_t checksum = 0;
-	for (uint16_t address = 0x0134; address <= 0x014C; address++) {
-		checksum = checksum - cart->rom_data[address] - 1;
+	for (uint16_t addr = 0x0134; addr <= 0x014c; addr++) {
+		checksum = checksum - cart->rom_data[addr] - 1;
 	}
 
 	if (checksum == cart->header->checksum) {

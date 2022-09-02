@@ -2,6 +2,7 @@
 #include <assert.h>
 #include "bus.h"
 #include "ram.h"
+#include "common.h"
 
 // file:///home/doctormartin67/Downloads/The%20Cycle-Accurate%20Game%20Boy%20Docs.pdf
 /*
@@ -46,7 +47,7 @@ uint8_t bus_read(const Cartridge *cart, uint16_t addr)
 	return hram_read(addr);
 }
 
-void bus_write(Cartridge *cart, uint16_t addr, uint8_t data)
+void bus_write8(Cartridge *cart, uint16_t addr, uint8_t data)
 {
 	if (addr < 0x8000) {
 		printf("ERROR: Trying to write to ROM\n");
@@ -76,4 +77,10 @@ void bus_write(Cartridge *cart, uint16_t addr, uint8_t data)
 	} else {
 		hram_write(addr, data);
 	}
+}
+
+void bus_write16(Cartridge *cart, uint16_t addr, uint16_t data)
+{
+	bus_write8(cart, addr, data & 0xff);
+	bus_write8(cart, addr + 1, LO_SHIFT(data) & 0xff);
 }

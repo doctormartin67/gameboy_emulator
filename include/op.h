@@ -98,12 +98,13 @@ typedef enum {
 	CPF,
 
 	JP_IMM16,
-	JP_AIMM16,
+	JP_ARR,
 	JP_Z_IMM16,
 	JP_C_IMM16,
 	JP_NZ_IMM16,
 	JP_NC_IMM16,
 
+	JR_IMM8,
 	JR_Z_IMM8,
 	JR_C_IMM8,
 	JR_NZ_IMM8,
