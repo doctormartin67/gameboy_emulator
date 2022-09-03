@@ -26,23 +26,22 @@ uint8_t bus_read(const Cartridge *cart, uint16_t addr)
 		return cart_read(cart, addr);
 	} else if (addr < 0xa000) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
-		exit(1);
 	} else if (addr < 0xc000) {
 		return cart_read(cart, addr);
 	} else if (addr < 0xe000) {
 		return wram_read(addr);
 	} else if (addr < 0xfe00) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
-		exit(1);
+		return 0;
 	} else if (addr < 0xfea0) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
-		exit(1);
+		return 0;
 	} else if (addr < 0xff00) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
-		exit(1);
+		return 0;
 	} else if (addr < 0xff80) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
-		exit(1);
+		return 0;
 	}
 	return hram_read(addr);
 }
@@ -51,29 +50,22 @@ void bus_write8(Cartridge *cart, uint16_t addr, uint8_t data)
 {
 	if (addr < 0x8000) {
 		printf("ERROR: Trying to write to ROM\n");
-		exit(1);
 	} else if (addr < 0xa000) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
-		exit(1);
 	} else if (addr < 0xc000) {
 		cart_write(cart, addr, data);
 	} else if (addr < 0xe000) {
 		wram_write(addr, data);
 	} else if (addr < 0xfe00) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
-		exit(1);
 	} else if (addr < 0xfea0) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
-		exit(1);
 	} else if (addr < 0xff00) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
-		exit(1);
 	} else if (addr < 0xff80) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
-		exit(1);
 	} else if (addr == 0xffff) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
-		exit(1);
 	} else {
 		hram_write(addr, data);
 	}

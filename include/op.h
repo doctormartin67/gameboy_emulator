@@ -38,9 +38,9 @@ typedef enum {
 	ADD_RR_RR,
 	ADD_R_ARR,
 
-	SUB_R,
-	SUB_IMM8,
-	SUB_ARR,
+	SUB_R_R, 
+	SUB_R_IMM8,
+	SUB_R_ARR,
 
 	ADC_R_R,
 	ADC_R_IMM8,
@@ -58,21 +58,21 @@ typedef enum {
 	DEC_RR,
 	DEC_ARR,
 
-	AND_R,
-	AND_IMM8,
-	AND_ARR,
+	AND_R_R,
+	AND_R_IMM8,
+	AND_R_ARR,
 
-	XOR_R,
-	XOR_IMM8,
-	XOR_ARR,
+	XOR_R_R,
+	XOR_R_IMM8,
+	XOR_R_ARR,
 
-	OR_R,
-	OR_IMM8,
-	OR_ARR,
+	OR_R_R,
+	OR_R_IMM8,
+	OR_R_ARR,
 
-	CP_R,
-	CP_IMM8,
-	CP_ARR,
+	CP_R_R,
+	CP_R_IMM8,
+	CP_R_ARR,
 
 	RET,
 	RETI,

@@ -155,6 +155,8 @@ Cartridge *cart_load(const char *file_name)
 unsigned cart_check(const Cartridge *cart)
 {
 	assert(cart->header->checksum == cart->rom_data[0x014d]);
+	printf("WARNING: NOT CHECKING CHECKSUM\n");
+	return 1;
 	uint8_t checksum = 0;
 	for (uint16_t addr = 0x0134; addr <= 0x014c; addr++) {
 		checksum = checksum - cart->rom_data[addr] - 1;
