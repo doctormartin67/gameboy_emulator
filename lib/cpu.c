@@ -241,11 +241,6 @@ static void write_reg_areg(Cpu *cpu, Cartridge *cart)
 	write_reg(cpu, cpu->op.reg1, bus_read(cart, reg2));
 }
 
-#define Z_FLAG(z) !z
-#define N_FLAG(n) BIT(n, sizeof(n) - 1)
-#define H_FLAG(a, b) (((a) & 0xf << 4) != ((b) & 0xf << 4))
-#define C_FLAG(a, b) (((a) & 0xff << 8) != ((b) & 0xff << 8))
-
 /*
  * 0: set to 0
  * 1: set to 1
@@ -325,11 +320,19 @@ static void set_op_flags(Cpu *cpu, uint32_t operand, uint32_t result)
 		case CP_R_ARR:
 			set_flags(cpu, z, 1, h, c);
 			break;
-		case RLCA:
-		case RRCA:
-		case RLA:
-		case RRA:
+		case RLCA_R:
+		case RRCA_R:
+		case RLA_R:
+		case RRA_R:
 			set_flags(cpu, 0, 0, 0, c);
+			break;
+		case DAA_R:
+			assert(REG_A == cpu->op.reg1);
+			set_flags(cpu, z, 2, 0, c);
+			break;
+		case CPL_R:
+			assert(REG_A == cpu->op.reg1);
+			set_flags(cpu, 2, 1, 1, 2);
 			break;
 		default:
 			// no flags to be set
@@ -407,7 +410,6 @@ static uint16_t get_rst_addr(OpKind kind)
 static void op_jmp(Cpu *cpu, const Cartridge *cart)
 {
 	uint16_t imm = 0;
-	uint16_t pc = cpu->regs.pc;
 	switch (cpu->op.kind) {
 		case JP_IMM16:
 		case CALL_IMM16:
@@ -440,8 +442,7 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 		case JR_NC_IMM8:
 			imm = next_imm8(cpu, cart);
 			if (flag_cond_met(cpu)) {
-				pc += (int8_t)imm;
-				cpu->regs.pc = pc;
+				cpu->regs.pc += (int8_t)imm;
 			}
 			break;
 		case RETI:
@@ -744,7 +745,7 @@ static void op_cb(Cpu *cpu, Cartridge *cart)
 			op_cb_write(cpu, cart, reg_kind, result, 1);
 			return;
 		case 0x01: // RRC
-			result = (reg >> 1) | (BIT(reg, 0) ? 1 : 0);
+			result = (reg >> 1) | (BIT(reg, 0) ? 1 << 7 : 0);
 			op_cb_write(cpu, cart, reg_kind, result, 1);
 			return;
 		case 0x02: // RL
@@ -807,16 +808,16 @@ static void op_rot(Cpu *cpu)
 	uint16_t reg = read_reg(cpu, cpu->op.reg1);
 	uint16_t result = 0;
 	switch (cpu->op.kind) {
-		case RLCA:
+		case RLCA_R:
 			result = (reg << 1) | (BIT(reg, 7) ? 1 : 0);
 			break;
-		case RRCA:
-			result = (reg >> 1) | (BIT(reg, 0) ? 1 : 0);
+		case RRCA_R:
+			result = (reg >> 1) | (BIT(reg, 0) ? 1 << 7 : 0);
 			break;
-		case RLA:
+		case RLA_R:
 			result = (reg << 1) | FLAG_C;
 			break;
-		case RRA:
+		case RRA_R:
 			result = (reg >> 1) | (FLAG_C << 7);
 			break;
 		default:
@@ -825,6 +826,43 @@ static void op_rot(Cpu *cpu)
 	}
 	write_reg(cpu, reg, result);
 	set_op_flags(cpu, reg, result);
+}
+
+static void op_daa(Cpu *cpu)
+{
+	assert(REG_A == cpu->op.reg1);
+	uint16_t reg = read_reg(cpu, cpu->op.reg1);
+	uint16_t result = 0;
+
+	if (FLAG_H || (!FLAG_N && (reg & 0xf) > 9)) {
+		result = 6;
+	}
+
+	if (FLAG_C || (!FLAG_N && reg > 0x99)) {
+		result |= 0x60;
+	}
+
+	result = FLAG_N ? reg - result:  reg + result;
+	write_reg(cpu, reg, result);
+	set_op_flags(cpu, reg, result);
+}
+
+static void op_cpl(Cpu *cpu)
+{
+	assert(REG_A == cpu->op.reg1);
+	uint16_t reg = read_reg(cpu, cpu->op.reg1);
+	uint16_t result = ~reg;
+	write_reg(cpu, reg, result);
+	set_op_flags(cpu, reg, result);
+}
+static void op_scf(Cpu *cpu)
+{
+	set_flags(cpu, 2, 0, 0, 1);
+}
+
+static void op_ccf(Cpu *cpu)
+{
+	set_flags(cpu, 2, 0, 0, FLAG_C ^ 1);
 }
 
 void next_op(Cpu *cpu, Cartridge *cart)
@@ -843,7 +881,8 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			assert(0);
 			break;
 		case HALT:
-			assert(0);
+			/* TODO: supposed to halt something, but I don't
+			   know what exactly */
 			break;
 		case PRE_CB:
 			op_cb(cpu, cart);
@@ -853,7 +892,8 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			   know what exactly */
 			break;
 		case EI:
-			assert(0);
+			/* TODO: supposed to enable ime, but I don't
+			   know what that means yet exactly */
 			break;
 		case LD_R_R:
 		case LD_R_IMM8:
@@ -1036,17 +1076,17 @@ void next_op(Cpu *cpu, Cartridge *cart)
 		case RST_38:
 			op_jmp(cpu, cart);
 			break;
-		case DAA:
-			assert(0);
+		case DAA_R:
+			op_daa(cpu);
 			break;
 		case SCF:
-			assert(0);
+			op_scf(cpu);
 			break;
-		case CPL:
-			assert(0);
+		case CPL_R:
+			op_cpl(cpu);
 			break;
-		case CPF:
-			assert(0);
+		case CCF:
+			op_ccf(cpu);
 			break;
 		case JP_IMM16:
 		case JP_ARR:
@@ -1072,10 +1112,10 @@ void next_op(Cpu *cpu, Cartridge *cart)
 		case PUSH_RR:
 			op_push(cpu, cart);
 			break;
-		case RLCA:
-		case RRCA:
-		case RLA:
-		case RRA:
+		case RLCA_R:
+		case RRCA_R:
+		case RLA_R:
+		case RRA_R:
 			op_rot(cpu);
 			break;
 	}
@@ -1109,4 +1149,11 @@ void cpu_print(const Cpu *cpu, const Cartridge *cart)
 			bus_read(cart, cpu->regs.pc + 1),
 			bus_read(cart, cpu->regs.pc + 2));
 	print_regs(cpu->regs);
+}
+
+Cpu *cpu_init(void)
+{
+	Cpu *cpu = malloc(sizeof(*cpu));
+	*cpu = (Cpu){.regs = {.pc = ENTR_ADDR}};
+	return cpu;
 }

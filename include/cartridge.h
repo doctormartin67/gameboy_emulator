@@ -5,6 +5,12 @@
 #include <stdint.h>
 
 // https://gbdev.io/pandocs/The_Cartridge_Header.html
+
+#define ENTR_ADDR 0x100
+#define TITLE_ADDR 0x0134
+#define MASK_ROM_V_N_ADDR 0x014c
+#define CHECKSUM_ADDR 0x014d
+
 /*
  * Note: this struct is perfectly alligned so that we can cast the rom data
  * to this struct type pointer (size == 80).
@@ -37,5 +43,6 @@ unsigned cart_check(const Cartridge *cart);
 void cart_print(const Cartridge *cart);
 uint8_t cart_read(const Cartridge *cart, uint16_t addr);
 void cart_write(Cartridge *cart, uint16_t addr, uint8_t data);
+Cartridge *cart_init(const char *file_name);
 
 #endif

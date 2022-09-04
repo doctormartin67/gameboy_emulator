@@ -141,7 +141,7 @@ Cartridge *cart_load(const char *file_name)
 		printf("Unable to read data from file '%s'\n", file_name);
 		exit(1);
 	}
-	cart->header = (struct cartridge_header *)(cart->rom_data + 0x100);
+	cart->header = (struct cartridge_header *)(cart->rom_data + ENTR_ADDR);
 	size_t title_size = sizeof(cart->header->title);
 	cart->header->title[title_size - 1] = 0;
 	
@@ -154,11 +154,11 @@ Cartridge *cart_load(const char *file_name)
  */
 unsigned cart_check(const Cartridge *cart)
 {
-	assert(cart->header->checksum == cart->rom_data[0x014d]);
+	assert(cart->header->checksum == cart->rom_data[CHECKSUM_ADDR]);
 	printf("WARNING: NOT CHECKING CHECKSUM\n");
 	return 1;
 	uint8_t checksum = 0;
-	for (uint16_t addr = 0x0134; addr <= 0x014c; addr++) {
+	for (uint16_t addr = TITLE_ADDR; addr <= MASK_ROM_V_N_ADDR; addr++) {
 		checksum = checksum - cart->rom_data[addr] - 1;
 	}
 
@@ -196,4 +196,11 @@ void cart_write(Cartridge *cart, uint16_t addr, uint8_t data)
 	assert(addr < cart->rom_size);
 	(void)data;
 	assert(0);
+}
+
+Cartridge *cart_init(const char *file_name)
+{
+	Cartridge *cart = cart_load(file_name);
+	assert(cart_check(cart));
+	return cart;
 }

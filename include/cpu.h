@@ -11,6 +11,12 @@
 #define FLAG_H BIT(cpu->regs.f, FLAG_H_BIT)
 #define FLAG_C BIT(cpu->regs.f, FLAG_C_BIT)
 
+#define Z_FLAG(z) !z
+#define N_FLAG(n) BIT(n, sizeof(n) - 1)
+#define H_FLAG(a, b) (((a) & 0xf << 4) != ((b) & 0xf << 4))
+#define C_FLAG(a, b) (((a) & 0xff << 8) != ((b) & 0xff << 8))
+
+
 struct registers {
 	uint8_t a;
 	uint8_t f;
@@ -31,5 +37,6 @@ typedef struct Cpu {
 } Cpu;
 void next_op(Cpu *cpu, Cartridge *cart);
 void cpu_print(const Cpu *cpu, const Cartridge *cart);
+Cpu *cpu_init(void);
 
 #endif

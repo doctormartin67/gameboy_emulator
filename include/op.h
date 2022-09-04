@@ -92,10 +92,10 @@ typedef enum {
 	RST_28,
 	RST_38,
 
-	DAA,
+	DAA_R,
+	CPL_R,
 	SCF,
-	CPL,
-	CPF,
+	CCF,
 
 	JP_IMM16,
 	JP_ARR,
@@ -118,10 +118,10 @@ typedef enum {
 
 	PUSH_RR,
 
-	RLCA,
-	RRCA,
-	RLA,
-	RRA,
+	RLCA_R,
+	RRCA_R,
+	RLA_R,
+	RRA_R,
 
 } OpKind;
 

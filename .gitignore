@@ -13,3 +13,6 @@ main
 
 # ctags
 *tags
+
+# vim swap files
+*.swp
