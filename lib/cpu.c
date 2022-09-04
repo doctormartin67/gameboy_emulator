@@ -325,6 +325,12 @@ static void set_op_flags(Cpu *cpu, uint32_t operand, uint32_t result)
 		case CP_R_ARR:
 			set_flags(cpu, z, 1, h, c);
 			break;
+		case RLCA:
+		case RRCA:
+		case RLA:
+		case RRA:
+			set_flags(cpu, 0, 0, 0, c);
+			break;
 		default:
 			// no flags to be set
 			break;
@@ -792,9 +798,33 @@ static void op_pop(Cpu *cpu, Cartridge *cart)
 	assert(!is_8bit_reg(reg));
 	uint16_t data = stack_pop(cpu, cart);
 	write_reg(cpu, reg, data);
-	if (REG_AF == reg) {
-		write_reg(cpu, REG_F, data & 0xff);
+	// TODO: still to check whether F flags need to be adapted here
+}
+
+static void op_rot(Cpu *cpu)
+{
+	assert(REG_A == cpu->op.reg1);
+	uint16_t reg = read_reg(cpu, cpu->op.reg1);
+	uint16_t result = 0;
+	switch (cpu->op.kind) {
+		case RLCA:
+			result = (reg << 1) | (BIT(reg, 7) ? 1 : 0);
+			break;
+		case RRCA:
+			result = (reg >> 1) | (BIT(reg, 0) ? 1 : 0);
+			break;
+		case RLA:
+			result = (reg << 1) | FLAG_C;
+			break;
+		case RRA:
+			result = (reg >> 1) | (FLAG_C << 7);
+			break;
+		default:
+			assert(0);
+			break;
 	}
+	write_reg(cpu, reg, result);
+	set_op_flags(cpu, reg, result);
 }
 
 void next_op(Cpu *cpu, Cartridge *cart)
@@ -1043,10 +1073,10 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			op_push(cpu, cart);
 			break;
 		case RLCA:
-			assert(0);
-			break;
 		case RRCA:
-			assert(0);
+		case RLA:
+		case RRA:
+			op_rot(cpu);
 			break;
 	}
 }

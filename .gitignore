@@ -10,3 +10,6 @@ main
 
 # gameboy ROM files
 *.gb
+
+# ctags
+*tags

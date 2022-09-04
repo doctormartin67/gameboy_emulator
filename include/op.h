@@ -120,8 +120,9 @@ typedef enum {
 
 	RLCA,
 	RRCA,
+	RLA,
+	RRA,
 
-	// TODO: CB
 } OpKind;
 
 typedef enum {
