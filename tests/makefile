@@ -14,13 +14,13 @@ CFLAGS = -g -Wall -Wextra -Werror -pedantic
 # THIS BELOW INCLUDRES AND LDLIBS ON XML CAN BE REMOVED
 INCLUDES = -I $(INCLUDE) `sdl2-config --cflags`
 LIBS = 
-LDLIBS = $(LIBS) `sdl2-config --libs `
+LDLIBS = $(LIBS) `sdl2-config --libs`
 LDFLAGS = -L$(LIB)
 
 COMPILE.c = $(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) $(TARGET_ARCH) -c
 
 # ---Object files---
-OBJS = emulator.o cartridge.o bus.o cpu.o op.o ram.o stack.o ui.o
+OBJS = emulator.o cartridge.o bus.o cpu.o op.o ram.o io.o stack.o ui.o
 .DELETE_ON_ERROR: $(OBJS)
 
 # ---vpath---

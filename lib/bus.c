@@ -2,6 +2,7 @@
 #include <assert.h>
 #include "bus.h"
 #include "ram.h"
+#include "io.h"
 #include "common.h"
 
 // file:///home/doctormartin67/Downloads/The%20Cycle-Accurate%20Game%20Boy%20Docs.pdf
@@ -40,8 +41,7 @@ uint8_t bus_read(const Cartridge *cart, uint16_t addr)
 		printf("Read at address '0x%04x' not supported yet\n", addr);
 		return 0;
 	} else if (addr < 0xff80) {
-		printf("Read at address '0x%04x' not supported yet\n", addr);
-		return 0;
+		return io_read(addr);
 	}
 	return hram_read(addr);
 }
@@ -63,7 +63,7 @@ void bus_write8(Cartridge *cart, uint16_t addr, uint8_t data)
 	} else if (addr < 0xff00) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
 	} else if (addr < 0xff80) {
-		printf("Write at address '0x%04x' not supported yet\n", addr);
+		io_write(addr, data);
 	} else if (addr == 0xffff) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
 	} else {
