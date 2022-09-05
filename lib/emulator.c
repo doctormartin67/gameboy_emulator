@@ -1,14 +1,32 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "emulator.h"
-#include "cartridge.h"
-#include "cpu.h"
+#include "ui.h"
 
-Emulator *emu_init(void)
+Emulator *emu_init(Cpu *cpu, Cartridge *cart)
 {
 	Emulator *emu = malloc(sizeof(*emu));
-	*emu = (Emulator){.running = 1, .paused = 0};
+	*emu = (Emulator){
+		.running = 1, .playing = 0,
+			.cpu = cpu, .cart = cart};
 	return emu;
+}
+
+void emu_kill(Emulator *emu)
+{
+	emu->running = 0;	
+}
+
+void *cpu_run(void *p)
+{
+	Emulator *emu = p;
+	while (emu->running) {
+		//(void)getchar();
+		cpu_print(emu->cpu, emu->cart);
+		next_op(emu->cpu, emu->cart);
+	}
+	return 0;
 }
 
 int emu_main(int argc, char *argv[])
@@ -20,14 +38,20 @@ int emu_main(int argc, char *argv[])
 
 	Cartridge *cart = cart_init(argv[1]);
 	Cpu *cpu = cpu_init();
-	Emulator *emu = emu_init();
+	Emulator *emu = emu_init(cpu, cart);
+	ui_init();
 
 	cart_print(cart);
 
-	while (emu->running) {
-		//(void)getchar();
-		cpu_print(cpu, cart);
-		next_op(cpu, cart);
+	pthread_t cpu_thread;
+
+	if (pthread_create(&cpu_thread, 0, cpu_run, emu)) {
+		printf("Unable to start cpu thread\n");
+		return 1;
+	}
+
+	while(emu->running) {
+		ui_handle_events(emu);
 	}
 	return 0;
 }

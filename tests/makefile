@@ -5,20 +5,22 @@ LIB = ../lib
 EXE = main
 
 # ---dependencies---
+SLD2 = libsdl2-2.0-0 libsdl2-dbg libsdl2-dev libsdl2-image-2.0-0 \
+	libsdl2-image-dbg libsdl2-image-dev
 
 # ---Rule Structure---
 CC = gcc
 CFLAGS = -g -Wall -Wextra -Werror -pedantic
 # THIS BELOW INCLUDRES AND LDLIBS ON XML CAN BE REMOVED
-INCLUDES = -I $(INCLUDE) 
+INCLUDES = -I $(INCLUDE) `sdl2-config --cflags`
 LIBS = 
-LDLIBS = $(LIBS) 
+LDLIBS = $(LIBS) `sdl2-config --libs `
 LDFLAGS = -L$(LIB)
 
 COMPILE.c = $(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) $(TARGET_ARCH) -c
 
 # ---Object files---
-OBJS = emulator.o cartridge.o bus.o cpu.o op.o ram.o stack.o
+OBJS = emulator.o cartridge.o bus.o cpu.o op.o ram.o stack.o ui.o
 .DELETE_ON_ERROR: $(OBJS)
 
 # ---vpath---
@@ -36,6 +38,7 @@ fast: CFLAGS = -g -Wextra -Werror -pedantic -Ofast
 fast: all
 
 DEPENDENCIES:
+	$(call install_dependency, $(SDL2))
 	
 $(EXE): $(EXE).o $(OBJS)
 
@@ -54,3 +57,19 @@ clean:
 	$(RM) $(EXE)
 
 # ---functions---
+define install_dependency
+	@echo "####################"
+	@echo "Checking if package '$1' is installed"
+	@echo "####################"
+	@if dpkg -s $1; then \
+	    echo "####################"; \
+	    echo "package '$1' found"; \
+	    echo "####################"; \
+	else \
+	    echo "package '$1' not installed"; \
+	    read -p "install? (y/n)" confirm; \
+	    if [ $$confirm = y ]; then \
+		sudo apt install $1; \
+	    fi \
+	fi
+endef

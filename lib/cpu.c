@@ -481,32 +481,41 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 	}
 }
 
+#define OP(op, reg_kind) \
+	uint16_t reg = read_reg(cpu, reg_kind); \
+	uint16_t result = reg op val; \
+	write_reg(cpu, reg_kind, result); \
+	set_op_flags(cpu, reg, result);
+
 static void op_and(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	uint16_t reg1 = read_reg(cpu, cpu->op.reg1);
-	uint16_t result = reg1 & val;
-	write_reg(cpu, cpu->op.reg1, result);
-	set_op_flags(cpu, reg1, result);
+	OP(&, cpu->op.reg1);
 }
 
 static void op_or(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	uint16_t reg1 = read_reg(cpu, cpu->op.reg1);
-	uint16_t result = reg1 | val;
-	write_reg(cpu, cpu->op.reg1, result);
-	set_op_flags(cpu, reg1, result);
+	OP(|, cpu->op.reg1);
 }
 
 static void op_xor(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	uint16_t reg1 = read_reg(cpu, cpu->op.reg1);
-	uint16_t result = reg1 ^ val;
-	write_reg(cpu, cpu->op.reg1, result);
-	set_op_flags(cpu, reg1, result);
+	OP(^, cpu->op.reg1);
 }
+
+static void op_add(Cpu *cpu, Reg reg_kind, uint16_t val)
+{
+	OP(+, reg_kind);
+}
+
+static void op_sub(Cpu *cpu, Reg reg_kind, uint16_t val)
+{
+	OP(-, reg_kind);
+}
+
+#undef OP
 
 static void op_cp(Cpu *cpu, uint16_t val)
 {
@@ -522,23 +531,6 @@ static void add_to_addr(Cartridge *cart, uint16_t addr, uint8_t val)
 	new_val += val;
 	bus_write8(cart, addr, new_val);
 }
-
-static void op_add(Cpu *cpu, Reg reg_kind, uint16_t val)
-{
-	uint16_t reg = read_reg(cpu, reg_kind);
-	uint16_t result = reg + val;
-	write_reg(cpu, reg_kind, result);
-	set_op_flags(cpu, reg, result);
-}
-
-static void op_sub(Cpu *cpu, Reg reg_kind, uint16_t val)
-{
-	uint16_t reg = read_reg(cpu, reg_kind);
-	uint16_t result = reg - val;
-	write_reg(cpu, reg_kind, result);
-	set_op_flags(cpu, reg, result);
-}
-
 
 static void op_inc(Cpu *cpu, Cartridge *cart)
 {
