@@ -27,6 +27,7 @@ uint8_t bus_read(const Cartridge *cart, uint16_t addr)
 		return cart_read(cart, addr);
 	} else if (addr < 0xa000) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
+		return 0;
 	} else if (addr < 0xc000) {
 		return cart_read(cart, addr);
 	} else if (addr < 0xe000) {
@@ -42,8 +43,9 @@ uint8_t bus_read(const Cartridge *cart, uint16_t addr)
 		return 0;
 	} else if (addr < 0xff80) {
 		return io_read(addr);
+	} else {
+		return hram_read(addr);
 	}
-	return hram_read(addr);
 }
 
 void bus_write8(Cartridge *cart, uint16_t addr, uint8_t data)

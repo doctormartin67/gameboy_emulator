@@ -7,6 +7,7 @@
 typedef struct Emulator {
 	unsigned running;
 	unsigned playing;
+	uint64_t ticks;
 	Cpu *cpu;
 	Cartridge *cart;
 } Emulator;

@@ -3,12 +3,13 @@
 #include <pthread.h>
 #include "emulator.h"
 #include "ui.h"
+#include "transfer.h"
 
 Emulator *emu_init(Cpu *cpu, Cartridge *cart)
 {
 	Emulator *emu = malloc(sizeof(*emu));
 	*emu = (Emulator){
-		.running = 1, .playing = 0,
+		.running = 1, .playing = 0, .ticks = 0,
 			.cpu = cpu, .cart = cart};
 	return emu;
 }
@@ -22,9 +23,13 @@ void *cpu_run(void *p)
 {
 	Emulator *emu = p;
 	while (emu->running) {
-		//(void)getchar();
+		//if (!(emu->ticks % 10)) (void)getchar();
+		printf("%9lu ", emu->ticks);
 		cpu_print(emu->cpu, emu->cart);
 		next_op(emu->cpu, emu->cart);
+		update_transfer_msg(emu->cart);
+		print_transfer_msg();
+		emu->ticks++;
 	}
 	return 0;
 }

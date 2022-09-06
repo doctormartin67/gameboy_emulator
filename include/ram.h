@@ -1,7 +1,7 @@
 #ifndef RAM_H
 #define RAM_H
 
-#include "cartridge.h"
+#include <stdint.h>
 
 typedef struct Ram {
 	uint8_t wram[0x2000];

@@ -1,3 +1,4 @@
+#include "bus.h"
 #include "stack.h"
 #include "common.h"
 

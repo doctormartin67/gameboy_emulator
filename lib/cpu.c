@@ -264,7 +264,7 @@ static void set_flags(Cpu *cpu, uint8_t z, uint8_t n, uint8_t h, uint8_t c)
 
 static void set_op_flags(Cpu *cpu, uint32_t operand, uint32_t result)
 {
-	uint8_t z = Z_FLAG(result);
+	uint8_t z = Z_FLAG(result & 0xff);
 	uint8_t h = H_FLAG(operand, result);
 	uint8_t c = C_FLAG(operand, result);
 	switch (cpu->op.kind) {
@@ -816,7 +816,7 @@ static void op_rot(Cpu *cpu)
 			assert(0);
 			break;
 	}
-	write_reg(cpu, reg, result);
+	write_reg(cpu, cpu->op.reg1, result);
 	set_op_flags(cpu, reg, result);
 }
 
@@ -835,7 +835,7 @@ static void op_daa(Cpu *cpu)
 	}
 
 	result = FLAG_N ? reg - result:  reg + result;
-	write_reg(cpu, reg, result);
+	write_reg(cpu, cpu->op.reg1, result);
 	set_op_flags(cpu, reg, result);
 }
 
@@ -844,7 +844,7 @@ static void op_cpl(Cpu *cpu)
 	assert(REG_A == cpu->op.reg1);
 	uint16_t reg = read_reg(cpu, cpu->op.reg1);
 	uint16_t result = ~reg;
-	write_reg(cpu, reg, result);
+	write_reg(cpu, cpu->op.reg1, result);
 	set_op_flags(cpu, reg, result);
 }
 static void op_scf(Cpu *cpu)
@@ -1125,13 +1125,13 @@ static void print_flags(uint8_t f)
 
 static void print_regs(struct registers regs)
 {
-	printf("A: 0x%02x ", regs.a);
+	printf("A: %02x ", regs.a);
 	print_flags(regs.f);
-	printf("BC: 0x%02x%02x ", regs.b, regs.c);
-	printf("DE 0x%02x%02x ", regs.d, regs.e);
-	printf("HL: 0x%02x%02x ", regs.h, regs.l);
-	printf("SP: 0x%04x ", regs.sp);
-	printf("PC: 0x%04x\n", regs.pc);
+	printf("BC: %02x%02x ", regs.b, regs.c);
+	printf("DE %02x%02x ", regs.d, regs.e);
+	printf("HL: %02x%02x ", regs.h, regs.l);
+	printf("SP: %04x ", regs.sp);
+	printf("PC: %04x\n", regs.pc);
 }
 
 void cpu_print(const Cpu *cpu, const Cartridge *cart)
@@ -1143,9 +1143,26 @@ void cpu_print(const Cpu *cpu, const Cartridge *cart)
 	print_regs(cpu->regs);
 }
 
+// https://gbdev.io/pandocs/Power_Up_Sequence.html?highlight=d8#cpu-registers
+
+static struct registers init_regs(void)
+{
+	return (struct registers) {.a = 0x01,
+		.f = 0xB0, // Z-HC
+		.b = 0x00,
+		.c = 0x13,
+		.d = 0x00,
+		.e = 0xd8,
+		.h = 0x01,
+		.l = 0x4d,
+		.pc = 0x100,
+		.sp = 0xfffe,
+	};
+}
+
 Cpu *cpu_init(void)
 {
 	Cpu *cpu = malloc(sizeof(*cpu));
-	*cpu = (Cpu){.regs = {.pc = ENTR_ADDR}};
+	*cpu = (Cpu){.regs = init_regs()};
 	return cpu;
 }
