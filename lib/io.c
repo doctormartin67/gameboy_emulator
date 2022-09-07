@@ -20,7 +20,6 @@ uint8_t io_read(uint16_t addr)
 void io_write(uint16_t addr, uint8_t data)
 {
 	if (SB_ADDR == addr) {
-		assert(0);
 		serial_data[0] = data;
 		return;
 	} else if (SC_ADDR == addr) {

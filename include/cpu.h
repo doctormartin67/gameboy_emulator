@@ -11,11 +11,10 @@
 #define FLAG_H BIT(cpu->regs.f, FLAG_H_BIT)
 #define FLAG_C BIT(cpu->regs.f, FLAG_C_BIT)
 
-#define Z_FLAG(z) !(z)
-#define N_FLAG(n) BIT(n, sizeof(n) - 1)
-#define H_FLAG(a, b) (((a) & 0xf << 4) != ((b) & 0xf << 4))
-#define C_FLAG(a, b) (((a) & 0xff << 8) != ((b) & 0xff << 8))
-
+#define Z_FLAG(a, b, op) !(((a) op (b)) & 0xff)
+#define N_FLAG(a, b, op) BIT((a) op (b), sizeof((a) op (b)) - 1)
+#define H_FLAG(a, b, op) (uint64_t)(((a) & 0xf) op ((b) & 0xf)) > 0xf
+#define C_FLAG(a, b, op) (uint64_t)(((a) & 0xff) op ((b) & 0xff)) > 0xff
 
 struct registers {
 	uint8_t a;

@@ -262,87 +262,14 @@ static void set_flags(Cpu *cpu, uint8_t z, uint8_t n, uint8_t h, uint8_t c)
 	}
 }
 
-static void set_op_flags(Cpu *cpu, uint32_t operand, uint32_t result)
-{
-	uint8_t z = Z_FLAG(result & 0xff);
-	uint8_t h = H_FLAG(operand, result);
-	uint8_t c = C_FLAG(operand, result);
-	switch (cpu->op.kind) {
-		case AND_R_R:
-		case AND_R_IMM8:
-		case AND_R_ARR:
-			set_flags(cpu, z, 0, 1, 0);
-			break;
-		case OR_R_R:
-		case OR_R_IMM8:
-		case OR_R_ARR:
-		case XOR_R_R:
-		case XOR_R_IMM8:
-		case XOR_R_ARR:
-			set_flags(cpu, z, 0, 0, 0);
-			break;
-		case LD_RR_RR_IMM8:
-			set_flags(cpu, 0, 0, h, c);
-			break;
-		case INC_R:
-			set_flags(cpu, z, 0, h, 2);
-			break;
-		case DEC_R:
-			set_flags(cpu, z, 1, h, 2);
-			break;
-		case ADD_R_R:
-		case ADD_R_ARR:
-		case ADD_R_IMM8:
-		case ADC_R_R:
-		case ADC_R_ARR:
-		case ADC_R_IMM8:
-			assert(REG_A == cpu->op.reg1);
-			set_flags(cpu, z, 0, h, c);
-			break;
-		case ADD_RR_IMM8:
-			assert(REG_SP == cpu->op.reg1);
-			set_flags(cpu, 0, 0, h, c);
-			break;
-		case ADD_RR_RR:
-			assert(REG_HL == cpu->op.reg1);
-			h = H_FLAG(operand >> 16, result >> 16);
-			c = C_FLAG(operand >> 16, result >> 16);
-			set_flags(cpu, 2, 0, h, c);
-			break;
-		case SUB_R_R:
-		case SUB_R_IMM8:
-		case SUB_R_ARR:
-		case SBC_R_R:
-		case SBC_R_IMM8:
-		case SBC_R_ARR:
-		case CP_R_R:
-		case CP_R_IMM8:
-		case CP_R_ARR:
-			set_flags(cpu, z, 1, h, c);
-			break;
-		case RLCA_R:
-		case RRCA_R:
-		case RLA_R:
-		case RRA_R:
-			set_flags(cpu, 0, 0, 0, c);
-			break;
-		case DAA_R:
-			assert(REG_A == cpu->op.reg1);
-			set_flags(cpu, z, 2, 0, c);
-			break;
-		case CPL_R:
-			assert(REG_A == cpu->op.reg1);
-			set_flags(cpu, 2, 1, 1, 2);
-			break;
-		default:
-			// no flags to be set
-			break;
-	}
-}
-
 static unsigned flag_cond_met(const Cpu *cpu)
 {
 	switch (cpu->op.kind) {
+		case JP_IMM16:
+		case CALL_IMM16:
+		case RET:
+		case RETI:
+			return 1;
 		case JP_Z_IMM16:
 		case CALL_Z_IMM16:
 		case JR_Z_IMM8:
@@ -417,7 +344,8 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 			cpu->regs.pc = imm;
 			break;
 		case JP_ARR:
-			assert(0);
+			assert(REG_HL == cpu->op.reg1);
+			cpu->regs.pc = read_reg(cpu, cpu->op.reg1);
 			break;
 		case JP_Z_IMM16:
 		case CALL_Z_IMM16:
@@ -460,8 +388,8 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 		case RET_C:
 		case RET_NZ:
 		case RET_NC:
-			imm = stack_pop(cpu, cart);
 			if (flag_cond_met(cpu)) {
+				imm = stack_pop(cpu, cart);
 				cpu->regs.pc = imm;
 			}
 			break;
@@ -481,48 +409,74 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 	}
 }
 
-#define OP(op, reg_kind) \
+/*
+ * 3 means set it based on the expression
+ */
+#define SET_FLAG(op, f, F, cond) \
+	uint8_t f = (3 == cond ? F##_FLAG(reg, val, op) : cond);
+
+#define OP(op, reg_kind, write, z_val, n_val, h_val, c_val) \
 	uint16_t reg = read_reg(cpu, reg_kind); \
-	uint16_t result = reg op val; \
-	write_reg(cpu, reg_kind, result); \
-	set_op_flags(cpu, reg, result);
+	SET_FLAG(op, z, Z, z_val); \
+	SET_FLAG(op, n, N, n_val); \
+	SET_FLAG(op, h, H, h_val); \
+	SET_FLAG(op, c, C, c_val); \
+	if (write) { \
+		write_reg(cpu, reg_kind, reg op val); \
+	} \
+	set_flags(cpu, z, n, h, c);
 
 static void op_and(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	OP(&, cpu->op.reg1);
+	OP(&, cpu->op.reg1, 1, 3, 0, 1, 0);
 }
 
 static void op_or(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	OP(|, cpu->op.reg1);
+	OP(|, cpu->op.reg1, 1, 3, 0, 0, 0);
 }
 
 static void op_xor(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	OP(^, cpu->op.reg1);
+	OP(^, cpu->op.reg1, 1, 3, 0, 0, 0);
 }
 
 static void op_add(Cpu *cpu, Reg reg_kind, uint16_t val)
 {
-	OP(+, reg_kind);
+	switch (reg_kind) {
+		case REG_A:
+			{
+				OP(+, reg_kind, 1, 3, 0, 3, 3);
+				break;
+			}
+		case REG_HL:
+			{
+				OP(+, reg_kind, 1, 2, 0, 3, 3);
+				break;
+			}
+		case REG_SP:
+			{
+				OP(+, reg_kind, 1, 0, 0, 3, 3);
+				break;
+			}
+		default:
+			assert(0);
+			break;
+	}
 }
 
 static void op_sub(Cpu *cpu, Reg reg_kind, uint16_t val)
 {
-	OP(-, reg_kind);
+	OP(-, reg_kind, 1, 3, 1, 3, 3);
 }
-
-#undef OP
 
 static void op_cp(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	uint16_t reg1 = read_reg(cpu, cpu->op.reg1);
-	uint16_t result = reg1 - val;
-	set_op_flags(cpu, reg1, result);
+	OP(-, cpu->op.reg1, 0, 3, 1, 3, 3);
 }
 
 static void add_to_addr(Cartridge *cart, uint16_t addr, uint8_t val)
@@ -534,15 +488,32 @@ static void add_to_addr(Cartridge *cart, uint16_t addr, uint8_t val)
 
 static void op_inc(Cpu *cpu, Cartridge *cart)
 {
-	uint16_t reg = read_reg(cpu, cpu->op.reg1);
+	uint16_t val = 1;
 	switch (cpu->op.kind) {
 		case INC_R:
+			{
+				OP(+, cpu->op.reg1, 1, 3, 0, 3, 2);
+				break;
+			}
 		case INC_RR:
-			op_add(cpu, cpu->op.reg1, 1);
-			break;
+		case LD_ARRI_R:
+			{
+				OP(+, cpu->op.reg1, 1, 2, 2, 2, 2);
+				break;
+			}
+		case LD_R_ARRI:
+			{
+				OP(+, cpu->op.reg2, 1, 2, 2, 2, 2);
+				break;
+			}
 		case INC_ARR:
-			add_to_addr(cart, reg, 1);
-			break;
+			{
+				uint16_t reg = read_reg(cpu, cpu->op.reg1);
+				add_to_addr(cart, reg, 1);
+				set_flags(cpu, Z_FLAG(reg, 1, +), 0,
+						H_FLAG(reg, 1, +), 2);
+				break;
+			}
 		default:
 			assert(0);
 			break;
@@ -551,20 +522,40 @@ static void op_inc(Cpu *cpu, Cartridge *cart)
 
 static void op_dec(Cpu *cpu, Cartridge *cart)
 {
-	uint16_t reg = read_reg(cpu, cpu->op.reg1);
+	uint16_t val = 1;
 	switch (cpu->op.kind) {
 		case DEC_R:
+			{
+				OP(-, cpu->op.reg1, 1, 3, 1, 3, 2);
+				break;
+			}
 		case DEC_RR:
-			op_add(cpu, cpu->op.reg1, -1);
-			break;
+		case LD_ARRD_R:
+			{
+				OP(-, cpu->op.reg1, 1, 2, 2, 2, 2);
+				break;
+			}
+		case LD_R_ARRD:
+			{
+				OP(-, cpu->op.reg2, 1, 2, 2, 2, 2);
+				break;
+			}
 		case DEC_ARR:
-			add_to_addr(cart, reg, -1);
-			break;
+			{
+				uint16_t reg = read_reg(cpu, cpu->op.reg1);
+				add_to_addr(cart, reg, -1);
+				set_flags(cpu, Z_FLAG(reg, 1, -), 1,
+						H_FLAG(reg, 1, -), 2);
+				break;
+			}
 		default:
 			assert(0);
 			break;
 	}
 }
+
+#undef SET_FLAG
+#undef OP
 
 static void op_ld(Cpu *cpu, Cartridge *cart)
 {
@@ -608,11 +599,11 @@ static void op_ld(Cpu *cpu, Cartridge *cart)
 			break;
 		case LD_ARRI_R:
 			write_areg_reg(cpu, cart);
-			op_add(cpu, cpu->op.reg1, 1);
+			op_inc(cpu, cart);
 			break;
 		case LD_ARRD_R:
 			write_areg_reg(cpu, cart);
-			op_add(cpu, cpu->op.reg1, -1);
+			op_dec(cpu, cart);
 			break;
 		case LD_AIMM16_R:
 			imm = next_imm16(cpu, cart);
@@ -630,17 +621,18 @@ static void op_ld(Cpu *cpu, Cartridge *cart)
 			break;
 		case LD_R_ARRI:
 			write_reg_areg(cpu, cart);
-			op_add(cpu, cpu->op.reg2, 1);
+			op_inc(cpu, cart);
 			break;
 		case LD_R_ARRD:
 			write_reg_areg(cpu, cart);
-			op_add(cpu, cpu->op.reg2, -1);
+			op_dec(cpu, cart);
 			break;
 		case LD_RR_RR_IMM8:
 			imm = next_imm8(cpu, cart);
 			reg2 = read_reg(cpu, cpu->op.reg2);
 			write_reg(cpu, cpu->op.reg1, reg2 + (int8_t)imm);
-			set_op_flags(cpu, reg2, reg2 + imm);
+			set_flags(cpu, 0, 0, H_FLAG(reg2, imm, +),
+					C_FLAG(reg2, imm, +));
 			break;
 		case LD_RR_RR:
 			reg2 = read_reg(cpu, cpu->op.reg2);
@@ -690,20 +682,13 @@ static void cb_write(Cpu *cpu, Cartridge *cart, Reg reg, uint16_t data)
 	}
 }
 
-static void op_cb_write(Cpu *cpu, Cartridge *cart, Reg reg, uint16_t data,
-		unsigned set_c_flag)
-{
-	uint8_t c = set_c_flag ? C_FLAG(reg, data) : 0;
-	cb_write(cpu, cart, reg, data);
-	set_flags(cpu, Z_FLAG(data), 0, 0, c);
-}
-
 static void op_cb(Cpu *cpu, Cartridge *cart)
 {
 	uint8_t op = next_imm8(cpu, cart);
 	Reg reg_kind = decode_op(op);
 	uint16_t reg = read_reg(cpu, reg_kind);
 	uint16_t result = 0;
+	uint8_t c = 0;
 
 	/*
 	 * there's a pattern in the opcodes to determine which bit should be
@@ -733,36 +718,50 @@ static void op_cb(Cpu *cpu, Cartridge *cart)
 
 	switch (bit) {
 		case 0x00: // RLC
-			result = (reg << 1) | (BIT(reg, 7) ? 1 : 0);
-			op_cb_write(cpu, cart, reg_kind, result, 1);
+			c = (BIT(reg, 7) ? 1 : 0);
+			result = (reg << 1) | (c ? 1 : 0);
+			cb_write(cpu, cart, reg_kind, result);
+			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x01: // RRC
-			result = (reg >> 1) | (BIT(reg, 0) ? 1 << 7 : 0);
-			op_cb_write(cpu, cart, reg_kind, result, 1);
+			c = BIT(reg, 0);
+			result = (reg >> 1) | (c ? 1 << 7 : 0);
+			cb_write(cpu, cart, reg_kind, result);
+			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x02: // RL
-			result = (reg << 1) | FLAG_C;
-			op_cb_write(cpu, cart, reg_kind, result, 1);
+			c = (BIT(reg, 7) ? 1 : 0);
+			result = (reg << 1) | (FLAG_C ? 1 : 0);
+			cb_write(cpu, cart, reg_kind, result);
+			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x03: // RR
-			result = (reg >> 1) | (FLAG_C << 7);
-			op_cb_write(cpu, cart, reg_kind, result, 1);
+			c = BIT(reg, 0);
+			result = (reg >> 1) | (FLAG_C ? 1 << 7 : 0);
+			cb_write(cpu, cart, reg_kind, result);
+			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x04: // SLA
+			c = (BIT(reg, 7) ? 1 : 0);
 			result = reg << 1;
-			op_cb_write(cpu, cart, reg_kind, result, 1);
+			cb_write(cpu, cart, reg_kind, result);
+			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x05: // SRA
-			result = reg >> 1;
-			op_cb_write(cpu, cart, reg_kind, result, 0);
+			result = (int8_t)reg >> 1;
+			cb_write(cpu, cart, reg_kind, result);
+			set_flags(cpu, 0 == result, 0, 0, 0);
 			return;
 		case 0x06: // SWAP
 			result = ((reg & 0xf0) >> 4) | ((reg & 0xf) << 4);
-			op_cb_write(cpu, cart, reg_kind, result, 0);
+			cb_write(cpu, cart, reg_kind, result);
+			set_flags(cpu, 0 == result, 0, 0, 0);
 			return;
 		case 0x07: // SRL
+			c = BIT(reg, 0);
 			result = reg >> 1;
-			op_cb_write(cpu, cart, reg_kind, result, 1);
+			cb_write(cpu, cart, reg_kind, result);
+			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 	}
 	assert(0);
@@ -799,17 +798,22 @@ static void op_rot(Cpu *cpu)
 	assert(REG_A == cpu->op.reg1);
 	uint16_t reg = read_reg(cpu, cpu->op.reg1);
 	uint16_t result = 0;
+	uint8_t c = 0;
 	switch (cpu->op.kind) {
 		case RLCA_R:
+			c = (BIT(reg, 7) ? 1 : 0);
 			result = (reg << 1) | (BIT(reg, 7) ? 1 : 0);
 			break;
 		case RRCA_R:
+			c = BIT(reg, 0);
 			result = (reg >> 1) | (BIT(reg, 0) ? 1 << 7 : 0);
 			break;
 		case RLA_R:
+			c = (BIT(reg, 7) ? 1 : 0);
 			result = (reg << 1) | FLAG_C;
 			break;
 		case RRA_R:
+			c = BIT(reg, 0);
 			result = (reg >> 1) | (FLAG_C << 7);
 			break;
 		default:
@@ -817,7 +821,7 @@ static void op_rot(Cpu *cpu)
 			break;
 	}
 	write_reg(cpu, cpu->op.reg1, result);
-	set_op_flags(cpu, reg, result);
+	set_flags(cpu, 0, 0, 0, c);
 }
 
 static void op_daa(Cpu *cpu)
@@ -825,6 +829,7 @@ static void op_daa(Cpu *cpu)
 	assert(REG_A == cpu->op.reg1);
 	uint16_t reg = read_reg(cpu, cpu->op.reg1);
 	uint16_t result = 0;
+	uint8_t c = 0;
 
 	if (FLAG_H || (!FLAG_N && (reg & 0xf) > 9)) {
 		result = 6;
@@ -834,9 +839,11 @@ static void op_daa(Cpu *cpu)
 		result |= 0x60;
 	}
 
-	result = FLAG_N ? reg - result:  reg + result;
+	result = FLAG_N ? reg - result : reg + result;
 	write_reg(cpu, cpu->op.reg1, result);
-	set_op_flags(cpu, reg, result);
+
+	c = (reg & 0xff << 8) != (result & 0xff << 8);
+	set_flags(cpu, 0 == result, 2, 0, c);
 }
 
 static void op_cpl(Cpu *cpu)
@@ -845,7 +852,7 @@ static void op_cpl(Cpu *cpu)
 	uint16_t reg = read_reg(cpu, cpu->op.reg1);
 	uint16_t result = ~reg;
 	write_reg(cpu, cpu->op.reg1, result);
-	set_op_flags(cpu, reg, result);
+	set_flags(cpu, 2, 1, 1, 2);
 }
 static void op_scf(Cpu *cpu)
 {
@@ -1098,7 +1105,9 @@ void next_op(Cpu *cpu, Cartridge *cart)
 		case CALL_C_IMM16:
 		case CALL_NZ_IMM16:
 		case CALL_NC_IMM16:
-			stack_push(cpu, cart, cpu->regs.pc + 2);
+			if (flag_cond_met(cpu)) {
+				stack_push(cpu, cart, cpu->regs.pc + 2);
+			}
 			op_jmp(cpu, cart);
 			break;
 		case PUSH_RR:

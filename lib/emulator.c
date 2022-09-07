@@ -23,8 +23,8 @@ void *cpu_run(void *p)
 {
 	Emulator *emu = p;
 	while (emu->running) {
-		//if (!(emu->ticks % 10)) (void)getchar();
-		printf("%9lu ", emu->ticks);
+		//if (!(emu->ticks % 100)) (void)getchar();
+		printf("%09lx ", emu->ticks);
 		cpu_print(emu->cpu, emu->cart);
 		next_op(emu->cpu, emu->cart);
 		update_transfer_msg(emu->cart);
