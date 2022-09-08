@@ -1,8 +1,6 @@
 #ifndef INTERRUPT_H
 #define INTERRUPT_H
 
-#include "emulator.h"
-
 enum interrupt {
 	INT_NONE,
 	INT_VBLANK,
@@ -11,7 +9,5 @@ enum interrupt {
 	INT_SERIAL = 8,
 	INT_JOYPAD = 16,
 };
-
-void cpu_int_handler(Emulator *emu);
 
 #endif

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "op.h"
-#include "cartridge.h"
+#include "interrupts.h"
 
 // https://gbdev.io/pandocs/CPU_Registers_and_Flags.html
 #define FLAG_Z BIT(cpu->regs.f, FLAG_Z_BIT)
@@ -41,6 +41,8 @@ typedef struct Cpu {
 } Cpu;
 uint8_t cpu_ie_reg_read(const Cpu *cpu);
 void cpu_ie_reg_write(Cpu *cpu, uint8_t data);
+uint8_t cpu_if_reg_read(const Cpu *cpu);
+void cpu_if_reg_write(Cpu *cpu, enum interrupt it);
 Cpu *cpu_init(void);
 
 #endif

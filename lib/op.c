@@ -251,7 +251,7 @@ static const Op ops[0x100] = {
 	[0xf3] = {.kind = DI},
 	[0xf5] = {.kind = PUSH_RR, .reg1 = REG_AF},
 	[0xf6] = {.kind = OR_R_IMM8, .reg1 = REG_A},
-	[0xf8] = {.kind = LD_RR_RR_IMM8, .reg1 = REG_SP, .reg2 = REG_HL},
+	[0xf8] = {.kind = LD_RR_RR_IMM8, .reg1 = REG_HL, .reg2 = REG_SP},
 	[0xf9] = {.kind = LD_RR_RR, .reg1 = REG_SP, .reg2 = REG_HL},
 	[0xfa] = {.kind = LD_R_AIMM16, .reg1 = REG_A},
 	[0xfb] = {.kind = EI},

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <assert.h>
 #include "emulator.h"
 #include "ui.h"
 #include "transfer.h"
@@ -32,9 +33,8 @@ void *cpu_run(void *p)
 			update_transfer_msg(emu);
 			print_transfer_msg();
 			emu->ticks++;
-		} else if (emu->cpu->ime_flag) {
-			cpu_int_handler(emu);
-		}
+		} 
+		cpu_int_handler(emu);
 	}
 	return 0;
 }

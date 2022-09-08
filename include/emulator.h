@@ -1,8 +1,8 @@
 #ifndef EMULATOR_H
 #define EMULATOR_H
 
-#include "cpu.h"
 #include "cartridge.h"
+#include "cpu.h"
 
 typedef struct Emulator {
 	unsigned running;
@@ -17,5 +17,6 @@ Emulator *emu_init(Cpu *cpu, Cartridge *cart);
 void emu_kill(Emulator *emu);
 void cpu_print(const Emulator *emu);
 void next_op(Emulator *emu);
+void cpu_int_handler(Emulator *emu);
 
 #endif

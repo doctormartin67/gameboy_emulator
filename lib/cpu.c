@@ -3,7 +3,6 @@
 #include "cpu.h"
 #include "bus.h"
 #include "stack.h"
-#include "interrupts.h"
 #include "common.h"
 
 // https://gbdev.io/pandocs/CPU_Registers_and_Flags.html
@@ -633,6 +632,8 @@ static void op_ld(Emulator *emu)
 			op_dec(emu);
 			break;
 		case LD_RR_RR_IMM8:
+			assert(REG_HL == cpu->op.reg1);
+			assert(REG_SP == cpu->op.reg2);
 			imm = next_imm8(emu);
 			reg2 = read_reg(cpu, cpu->op.reg2);
 			write_reg(cpu, cpu->op.reg1, reg2 + (int8_t)imm);
@@ -644,12 +645,14 @@ static void op_ld(Emulator *emu)
 			write_reg(cpu, cpu->op.reg1, reg2);
 			break;
 		case LDH_AIMM8_R:
+			assert(REG_A == cpu->op.reg2);
 			imm = next_imm8(emu);
 			reg2 = read_reg(cpu, cpu->op.reg2);
 			assert(reg2 < 0x100);
 			bus_write8(emu, 0xff00 | imm, reg2);
 			break;
 		case LDH_R_AIMM8:
+			assert(REG_A == cpu->op.reg1);
 			imm = 0xff00 | next_imm8(emu);
 			write_reg(cpu, cpu->op.reg1, bus_read(emu, imm));
 			break;
@@ -1186,9 +1189,14 @@ void cpu_ie_reg_write(Cpu *cpu, uint8_t data)
 	cpu->ie_reg = data;
 }
 
+uint8_t cpu_if_reg_read(const Cpu *cpu)
+{
+	return cpu->if_reg;
+}
+
 void cpu_if_reg_write(Cpu *cpu, enum interrupt it)
 {
-	cpu->ie_reg |= it;
+	cpu->if_reg |= it;
 }
 
 Cpu *cpu_init(void)
