@@ -21,7 +21,7 @@ COMPILE.c = $(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) $(TARGET_ARCH) -c
 
 # ---Object files---
 OBJS = emulator.o cartridge.o bus.o cpu.o op.o ram.o io.o stack.o ui.o \
-	transfer.o
+	transfer.o interrupts.o
 .DELETE_ON_ERROR: $(OBJS)
 
 # ---vpath---

@@ -28,8 +28,7 @@ void ui_init(void)
 void ui_handle_events(Emulator *emu)
 {
 	SDL_Event e;
-	while (SDL_PollEvent(&e) > 0)
-	{
+	while (SDL_PollEvent(&e) > 0) {
 		if (SDL_WINDOWEVENT == e.type
 			&& SDL_WINDOWEVENT_CLOSE == e.window.event) {
 			emu_kill(emu);

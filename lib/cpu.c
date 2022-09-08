@@ -374,9 +374,7 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 			}
 			break;
 		case RETI:
-			/*
-			 * TODO: set interupt enabled flag
-			 */
+			cpu->ime_flag = 1;
 			imm = stack_pop(cpu, cart);
 			cpu->regs.pc = imm;
 			break;
@@ -716,6 +714,7 @@ static void op_cb(Cpu *cpu, Cartridge *cart)
 			break;
 	}
 
+// https://www.geeksforgeeks.org/rotate-instructions-in-8085/
 	switch (bit) {
 		case 0x00: // RLC
 			c = (BIT(reg, 7) ? 1 : 0);
@@ -747,7 +746,7 @@ static void op_cb(Cpu *cpu, Cartridge *cart)
 			cb_write(cpu, cart, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
-		case 0x05: // SRA
+		case 0x05: // SRA shift right arithmetic (b7=b7)
 			result = (int8_t)reg >> 1;
 			cb_write(cpu, cart, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, 0);
@@ -880,19 +879,16 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			assert(0);
 			break;
 		case HALT:
-			/* TODO: supposed to halt something, but I don't
-			   know what exactly */
+			cpu->halted = 1;
 			break;
 		case PRE_CB:
 			op_cb(cpu, cart);
 			break;
 		case DI:
-			/* TODO: supposed to disable something, but I don't
-			   know what exactly */
+			cpu->ime_flag = 0;
 			break;
 		case EI:
-			/* TODO: supposed to enable ime, but I don't
-			   know what that means yet exactly */
+			cpu->ime_flag = 1;
 			break;
 		case LD_R_R:
 		case LD_R_IMM8:
@@ -1172,6 +1168,8 @@ static struct registers init_regs(void)
 Cpu *cpu_init(void)
 {
 	Cpu *cpu = malloc(sizeof(*cpu));
-	*cpu = (Cpu){.regs = init_regs()};
+	*cpu = (Cpu){.regs = init_regs(), 
+		.ime_flag = 0, .halted = 0, .ie_reg = 0, .if_reg = 0
+	};
 	return cpu;
 }

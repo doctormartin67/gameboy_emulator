@@ -4,6 +4,7 @@
 #include "emulator.h"
 #include "ui.h"
 #include "transfer.h"
+#include "interrupts.h"
 
 Emulator *emu_init(Cpu *cpu, Cartridge *cart)
 {
@@ -16,7 +17,7 @@ Emulator *emu_init(Cpu *cpu, Cartridge *cart)
 
 void emu_kill(Emulator *emu)
 {
-	emu->running = 0;	
+	emu->running = 0;
 }
 
 void *cpu_run(void *p)
@@ -24,12 +25,17 @@ void *cpu_run(void *p)
 	Emulator *emu = p;
 	while (emu->running) {
 		//if (!(emu->ticks % 100)) (void)getchar();
-		printf("%09lx ", emu->ticks);
-		cpu_print(emu->cpu, emu->cart);
-		next_op(emu->cpu, emu->cart);
-		update_transfer_msg(emu->cart);
-		print_transfer_msg();
-		emu->ticks++;
+		if (!emu->cpu->halted) {
+			printf("%09lx ", emu->ticks);
+			cpu_print(emu->cpu, emu->cart);
+			next_op(emu->cpu, emu->cart);
+			update_transfer_msg(emu->cart);
+			print_transfer_msg();
+			emu->ticks++;
+		} else if (emu->cpu->ime_flag) {
+			cpu_int_handler(emu);
+			emu->cpu->halted = 0;
+		}
 	}
 	return 0;
 }
@@ -60,4 +66,3 @@ int emu_main(int argc, char *argv[])
 	}
 	return 0;
 }
-

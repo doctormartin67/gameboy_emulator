@@ -29,8 +29,13 @@ struct registers {
 	uint16_t pc;
 }; 
 
+// https://gbdev.io/pandocs/Interrupts.html
 typedef struct Cpu {
 	struct registers regs;
+	unsigned ime_flag; // interrupt master enable flag
+	unsigned halted;
+	uint8_t ie_reg; // interrupt enable
+	uint8_t if_reg; // interrupt flag
 	uint8_t opcode;
 	Op op;
 } Cpu;
