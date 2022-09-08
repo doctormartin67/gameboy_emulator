@@ -14,7 +14,6 @@ static void int_handler(Emulator *emu, uint16_t addr)
  */
 static unsigned handle_int(Emulator *emu, enum interrupt it, uint16_t addr)
 {
-	assert(emu->cpu->ime_flag);
 	if (emu->cpu->ie_reg & it && emu->cpu->if_reg & it) {
 		int_handler(emu, addr);
 		emu->cpu->ime_flag = 0;
@@ -28,6 +27,8 @@ static unsigned handle_int(Emulator *emu, enum interrupt it, uint16_t addr)
 void cpu_int_handler(Emulator *emu)
 {
 	assert(emu->cpu->ime_flag);
+	assert(emu->cpu->ie_reg);
+	assert(emu->cpu->if_reg);
 	if (handle_int(emu, INT_VBLANK, 0x40)) {
 		return;
 	} else if (handle_int(emu, INT_LCD_STAT, 0x48)) {
@@ -39,6 +40,6 @@ void cpu_int_handler(Emulator *emu)
 	} else if (handle_int(emu, INT_JOYPAD, 0x60)) {
 		return;
 	} else {
-		// wating for interrupt
+		assert(0);
 	}
 }

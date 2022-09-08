@@ -7,9 +7,9 @@ enum interrupt {
 	INT_NONE,
 	INT_VBLANK,
 	INT_LCD_STAT,
-	INT_TIMER,
-	INT_SERIAL,
-	INT_JOYPAD,
+	INT_TIMER = 4,
+	INT_SERIAL = 8,
+	INT_JOYPAD = 16,
 };
 
 void cpu_int_handler(Emulator *emu);

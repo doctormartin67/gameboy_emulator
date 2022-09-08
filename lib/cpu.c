@@ -3,6 +3,7 @@
 #include "cpu.h"
 #include "bus.h"
 #include "stack.h"
+#include "interrupts.h"
 #include "common.h"
 
 // https://gbdev.io/pandocs/CPU_Registers_and_Flags.html
@@ -796,7 +797,9 @@ static void op_pop(Emulator *emu)
 	assert(!is_8bit_reg(reg));
 	uint16_t data = stack_pop(emu);
 	write_reg(emu->cpu, reg, data);
-	// TODO: still to check whether F flags need to be adapted here
+	if (REG_AF == reg) {
+		write_reg(emu->cpu, reg, data & 0xfff0);
+	}
 }
 
 static void op_rot(Cpu *cpu)
@@ -833,8 +836,8 @@ static void op_rot(Cpu *cpu)
 static void op_daa(Cpu *cpu)
 {
 	assert(REG_A == cpu->op.reg1);
-	uint16_t reg = read_reg(cpu, cpu->op.reg1);
-	uint16_t result = 0;
+	uint8_t reg = read_reg(cpu, cpu->op.reg1);
+	uint8_t result = 0;
 	uint8_t c = 0;
 
 	if (FLAG_H || (!FLAG_N && (reg & 0xf) > 9)) {
@@ -843,12 +846,11 @@ static void op_daa(Cpu *cpu)
 
 	if (FLAG_C || (!FLAG_N && reg > 0x99)) {
 		result |= 0x60;
+		c = 1;
 	}
 
 	result = FLAG_N ? reg - result : reg + result;
 	write_reg(cpu, cpu->op.reg1, result);
-
-	c = (reg & 0xff << 8) != (result & 0xff << 8);
 	set_flags(cpu, 0 == result, 2, 0, c);
 }
 
@@ -1182,6 +1184,11 @@ uint8_t cpu_ie_reg_read(const Cpu *cpu)
 void cpu_ie_reg_write(Cpu *cpu, uint8_t data)
 {
 	cpu->ie_reg = data;
+}
+
+void cpu_if_reg_write(Cpu *cpu, enum interrupt it)
+{
+	cpu->ie_reg |= it;
 }
 
 Cpu *cpu_init(void)
