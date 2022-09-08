@@ -15,5 +15,7 @@ typedef struct Emulator {
 int emu_main(int argc, char *argv[]);
 Emulator *emu_init(Cpu *cpu, Cartridge *cart);
 void emu_kill(Emulator *emu);
+void cpu_print(const Emulator *emu);
+void next_op(Emulator *emu);
 
 #endif

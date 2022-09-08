@@ -39,8 +39,8 @@ typedef struct Cpu {
 	uint8_t opcode;
 	Op op;
 } Cpu;
-void next_op(Cpu *cpu, Cartridge *cart);
-void cpu_print(const Cpu *cpu, const Cartridge *cart);
+uint8_t cpu_ie_reg_read(const Cpu *cpu);
+void cpu_ie_reg_write(Cpu *cpu, uint8_t data);
 Cpu *cpu_init(void);
 
 #endif

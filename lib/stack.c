@@ -2,26 +2,26 @@
 #include "stack.h"
 #include "common.h"
 
-static void stack_push8(Cpu *cpu, Cartridge *cart, uint8_t data)
+static void stack_push8(Emulator *emu, uint8_t data)
 {
-	cpu->regs.sp--;
-	bus_write8(cart, cpu->regs.sp, data);
+	emu->cpu->regs.sp--;
+	bus_write8(emu, emu->cpu->regs.sp, data);
 }
 
-void stack_push(Cpu *cpu, Cartridge *cart, uint16_t data)
+void stack_push(Emulator *emu, uint16_t data)
 {
-	stack_push8(cpu, cart, LO_SHIFT(data) & 0xff);
-	stack_push8(cpu, cart, data & 0xff);
+	stack_push8(emu, LO_SHIFT(data) & 0xff);
+	stack_push8(emu, data & 0xff);
 }
 
-static uint8_t stack_pop8(Cpu *cpu, const Cartridge *cart)
+static uint8_t stack_pop8(Emulator *emu)
 {
-	return bus_read(cart, cpu->regs.sp++);
+	return bus_read(emu, emu->cpu->regs.sp++);
 }
 
-uint16_t stack_pop(Cpu *cpu, const Cartridge *cart)
+uint16_t stack_pop(Emulator *emu)
 {
-	uint16_t lo = stack_pop8(cpu, cart);
-	uint16_t hi = stack_pop8(cpu, cart);
+	uint16_t lo = stack_pop8(emu);
+	uint16_t hi = stack_pop8(emu);
 	return HI_SHIFT(hi) | lo;
 }

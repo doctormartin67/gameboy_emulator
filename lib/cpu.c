@@ -35,16 +35,16 @@ static unsigned is_8bit_reg(Reg reg)
 	}
 }
 
-static uint8_t next_imm8(Cpu *cpu, const Cartridge *cart)
+static uint8_t next_imm8(Emulator *emu)
 {
-	uint8_t imm = bus_read(cart, cpu->regs.pc++);
+	uint8_t imm = bus_read(emu, emu->cpu->regs.pc++);
 	return imm;
 }
 
-static uint16_t next_imm16(Cpu *cpu, const Cartridge *cart)
+static uint16_t next_imm16(Emulator *emu)
 {
-	uint16_t lo = bus_read(cart, cpu->regs.pc++);
-	uint16_t hi = bus_read(cart, cpu->regs.pc++);
+	uint16_t lo = bus_read(emu, emu->cpu->regs.pc++);
+	uint16_t hi = bus_read(emu, emu->cpu->regs.pc++);
 	return lo | HI_SHIFT(hi);
 }
 
@@ -227,18 +227,20 @@ static void write_reg(Cpu *cpu, Reg reg, uint16_t value)
 	}
 }
 
-static void write_areg_reg(Cpu *cpu, Cartridge *cart)
+static void write_areg_reg(Emulator *emu)
 {
+	Cpu *cpu = emu->cpu;
 	uint16_t reg1 = read_reg(cpu, cpu->op.reg1);
 	uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 	assert(reg2 < 0x100);
-	bus_write8(cart, reg1, reg2);
+	bus_write8(emu, reg1, reg2);
 }
 
-static void write_reg_areg(Cpu *cpu, Cartridge *cart)
+static void write_reg_areg(Emulator *emu)
 {
+	Cpu *cpu = emu->cpu;
 	uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-	write_reg(cpu, cpu->op.reg1, bus_read(cart, reg2));
+	write_reg(cpu, cpu->op.reg1, bus_read(emu, reg2));
 }
 
 /*
@@ -334,13 +336,14 @@ static uint16_t get_rst_addr(OpKind kind)
 	}
 }
 
-static void op_jmp(Cpu *cpu, const Cartridge *cart)
+static void op_jmp(Emulator *emu)
 {
+	Cpu *cpu = emu->cpu;
 	uint16_t imm = 0;
 	switch (cpu->op.kind) {
 		case JP_IMM16:
 		case CALL_IMM16:
-			imm = next_imm16(cpu, cart);
+			imm = next_imm16(emu);
 			cpu->regs.pc = imm;
 			break;
 		case JP_ARR:
@@ -355,31 +358,31 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 		case CALL_NZ_IMM16:
 		case JP_NC_IMM16:
 		case CALL_NC_IMM16:
-			imm = next_imm16(cpu, cart);
+			imm = next_imm16(emu);
 			if (flag_cond_met(cpu)) {
 				cpu->regs.pc = imm;
 			}
 			break;
 		case JR_IMM8:
-			imm = next_imm8(cpu, cart);
+			imm = next_imm8(emu);
 			cpu->regs.pc += (int8_t)imm;
 			break;
 		case JR_Z_IMM8:
 		case JR_C_IMM8:
 		case JR_NZ_IMM8:
 		case JR_NC_IMM8:
-			imm = next_imm8(cpu, cart);
+			imm = next_imm8(emu);
 			if (flag_cond_met(cpu)) {
 				cpu->regs.pc += (int8_t)imm;
 			}
 			break;
 		case RETI:
 			cpu->ime_flag = 1;
-			imm = stack_pop(cpu, cart);
+			imm = stack_pop(emu);
 			cpu->regs.pc = imm;
 			break;
 		case RET:
-			imm = stack_pop(cpu, cart);
+			imm = stack_pop(emu);
 			cpu->regs.pc = imm;
 			break;
 		case RET_Z:
@@ -387,7 +390,7 @@ static void op_jmp(Cpu *cpu, const Cartridge *cart)
 		case RET_NZ:
 		case RET_NC:
 			if (flag_cond_met(cpu)) {
-				imm = stack_pop(cpu, cart);
+				imm = stack_pop(emu);
 				cpu->regs.pc = imm;
 			}
 			break;
@@ -477,15 +480,16 @@ static void op_cp(Cpu *cpu, uint16_t val)
 	OP(-, cpu->op.reg1, 0, 3, 1, 3, 3);
 }
 
-static void add_to_addr(Cartridge *cart, uint16_t addr, uint8_t val)
+static void add_to_addr(Emulator *emu, uint16_t addr, uint8_t val)
 {
-	uint8_t new_val = bus_read(cart, addr);
+	uint8_t new_val = bus_read(emu, addr);
 	new_val += val;
-	bus_write8(cart, addr, new_val);
+	bus_write8(emu, addr, new_val);
 }
 
-static void op_inc(Cpu *cpu, Cartridge *cart)
+static void op_inc(Emulator *emu)
 {
+	Cpu *cpu = emu->cpu;
 	uint16_t val = 1;
 	switch (cpu->op.kind) {
 		case INC_R:
@@ -507,7 +511,7 @@ static void op_inc(Cpu *cpu, Cartridge *cart)
 		case INC_ARR:
 			{
 				uint16_t reg = read_reg(cpu, cpu->op.reg1);
-				add_to_addr(cart, reg, 1);
+				add_to_addr(emu, reg, 1);
 				set_flags(cpu, Z_FLAG(reg, 1, +), 0,
 						H_FLAG(reg, 1, +), 2);
 				break;
@@ -518,8 +522,9 @@ static void op_inc(Cpu *cpu, Cartridge *cart)
 	}
 }
 
-static void op_dec(Cpu *cpu, Cartridge *cart)
+static void op_dec(Emulator *emu)
 {
+	Cpu *cpu = emu->cpu;
 	uint16_t val = 1;
 	switch (cpu->op.kind) {
 		case DEC_R:
@@ -541,7 +546,7 @@ static void op_dec(Cpu *cpu, Cartridge *cart)
 		case DEC_ARR:
 			{
 				uint16_t reg = read_reg(cpu, cpu->op.reg1);
-				add_to_addr(cart, reg, -1);
+				add_to_addr(emu, reg, -1);
 				set_flags(cpu, Z_FLAG(reg, 1, -), 1,
 						H_FLAG(reg, 1, -), 2);
 				break;
@@ -555,8 +560,9 @@ static void op_dec(Cpu *cpu, Cartridge *cart)
 #undef SET_FLAG
 #undef OP
 
-static void op_ld(Cpu *cpu, Cartridge *cart)
+static void op_ld(Emulator *emu)
 {
+	Cpu *cpu = emu->cpu;
 	uint16_t reg1 = 0;
 	uint16_t reg2 = 0;
 	uint16_t imm = 0;
@@ -566,67 +572,67 @@ static void op_ld(Cpu *cpu, Cartridge *cart)
 			write_reg(cpu, cpu->op.reg1, reg2);
 			break;
 		case LD_R_IMM8:
-			imm = next_imm8(cpu, cart);
+			imm = next_imm8(emu);
 			write_reg(cpu, cpu->op.reg1, imm);
 			break;
 		case LD_R_AIMM16:
-			imm = bus_read(cart, next_imm16(cpu, cart));
+			imm = bus_read(emu, next_imm16(emu));
 			write_reg(cpu, cpu->op.reg1, imm);
 			break;
 		case LD_AR_R:
 			reg1 = read_reg(cpu, cpu->op.reg1);
 			reg2 = read_reg(cpu, cpu->op.reg2);
 			assert(reg2 < 0x100);
-			bus_write8(cart, 0xff00 | reg1, reg2);
+			bus_write8(emu, 0xff00 | reg1, reg2);
 			break;
 		case LD_RR_IMM16:
-			imm = next_imm16(cpu, cart);
+			imm = next_imm16(emu);
 			write_reg(cpu, cpu->op.reg1, imm);
 			break;
 		case LD_R_AR:
 			reg2 = 0xff00 | read_reg(cpu, cpu->op.reg2);
-			write_reg(cpu, cpu->op.reg1, bus_read(cart, reg2));
+			write_reg(cpu, cpu->op.reg1, bus_read(emu, reg2));
 			break;
 		case LD_ARR_IMM8:
-			imm = next_imm8(cpu, cart);
+			imm = next_imm8(emu);
 			reg1 = read_reg(cpu, cpu->op.reg1);
-			bus_write8(cart, reg1, imm);
+			bus_write8(emu, reg1, imm);
 			break;
 		case LD_ARR_R:
-			write_areg_reg(cpu, cart);
+			write_areg_reg(emu);
 			break;
 		case LD_ARRI_R:
-			write_areg_reg(cpu, cart);
-			op_inc(cpu, cart);
+			write_areg_reg(emu);
+			op_inc(emu);
 			break;
 		case LD_ARRD_R:
-			write_areg_reg(cpu, cart);
-			op_dec(cpu, cart);
+			write_areg_reg(emu);
+			op_dec(emu);
 			break;
 		case LD_AIMM16_R:
-			imm = next_imm16(cpu, cart);
+			imm = next_imm16(emu);
 			reg2 = read_reg(cpu, cpu->op.reg2);
 			assert(reg2 < 0x100);
-			bus_write8(cart, imm, reg2);
+			bus_write8(emu, imm, reg2);
 			break;
 		case LD_AIMM16_RR:
-			imm = next_imm16(cpu, cart);
+			imm = next_imm16(emu);
 			reg2 = read_reg(cpu, cpu->op.reg2);
-			bus_write16(cart, imm, reg2);
+			bus_write16(emu, imm, reg2);
 			break;
 		case LD_R_ARR:
-			write_reg_areg(cpu, cart);
+			write_reg_areg(emu);
 			break;
 		case LD_R_ARRI:
-			write_reg_areg(cpu, cart);
-			op_inc(cpu, cart);
+			write_reg_areg(emu);
+			op_inc(emu);
 			break;
 		case LD_R_ARRD:
-			write_reg_areg(cpu, cart);
-			op_dec(cpu, cart);
+			write_reg_areg(emu);
+			op_dec(emu);
 			break;
 		case LD_RR_RR_IMM8:
-			imm = next_imm8(cpu, cart);
+			imm = next_imm8(emu);
 			reg2 = read_reg(cpu, cpu->op.reg2);
 			write_reg(cpu, cpu->op.reg1, reg2 + (int8_t)imm);
 			set_flags(cpu, 0, 0, H_FLAG(reg2, imm, +),
@@ -637,14 +643,14 @@ static void op_ld(Cpu *cpu, Cartridge *cart)
 			write_reg(cpu, cpu->op.reg1, reg2);
 			break;
 		case LDH_AIMM8_R:
-			imm = next_imm8(cpu, cart);
+			imm = next_imm8(emu);
 			reg2 = read_reg(cpu, cpu->op.reg2);
 			assert(reg2 < 0x100);
-			bus_write8(cart, 0xff00 | imm, reg2);
+			bus_write8(emu, 0xff00 | imm, reg2);
 			break;
 		case LDH_R_AIMM8:
-			imm = 0xff00 | next_imm8(cpu, cart);
-			write_reg(cpu, cpu->op.reg1, bus_read(cart, imm));
+			imm = 0xff00 | next_imm8(emu);
+			write_reg(cpu, cpu->op.reg1, bus_read(emu, imm));
 			break;
 		default:
 			assert(0);
@@ -671,18 +677,19 @@ static Reg decode_op(uint8_t op)
 	return regs[op & 0x7];
 }
 
-static void cb_write(Cpu *cpu, Cartridge *cart, Reg reg, uint16_t data)
+static void cb_write(Emulator *emu, Reg reg, uint16_t data)
 {
 	if (REG_HL == reg) {
-		bus_write8(cart, read_reg(cpu, reg), data);
+		bus_write8(emu, read_reg(emu->cpu, reg), data);
 	} else {
-		write_reg(cpu, reg, data);
+		write_reg(emu->cpu, reg, data);
 	}
 }
 
-static void op_cb(Cpu *cpu, Cartridge *cart)
+static void op_cb(Emulator *emu)
 {
-	uint8_t op = next_imm8(cpu, cart);
+	Cpu *cpu = emu->cpu;
+	uint8_t op = next_imm8(emu);
 	Reg reg_kind = decode_op(op);
 	uint16_t reg = read_reg(cpu, reg_kind);
 	uint16_t result = 0;
@@ -703,11 +710,11 @@ static void op_cb(Cpu *cpu, Cartridge *cart)
 			return;
 		case 0x02: // RES
 			result = reg & ~(1 << bit);
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			return;
 		case 0x03: // SET
 			result = reg | (1 << bit);
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			return;
 		default:
 			// not one of these op types, go to next switch
@@ -719,59 +726,59 @@ static void op_cb(Cpu *cpu, Cartridge *cart)
 		case 0x00: // RLC
 			c = (BIT(reg, 7) ? 1 : 0);
 			result = (reg << 1) | (c ? 1 : 0);
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x01: // RRC
 			c = BIT(reg, 0);
 			result = (reg >> 1) | (c ? 1 << 7 : 0);
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x02: // RL
 			c = (BIT(reg, 7) ? 1 : 0);
 			result = (reg << 1) | (FLAG_C ? 1 : 0);
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x03: // RR
 			c = BIT(reg, 0);
 			result = (reg >> 1) | (FLAG_C ? 1 << 7 : 0);
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x04: // SLA
 			c = (BIT(reg, 7) ? 1 : 0);
 			result = reg << 1;
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 		case 0x05: // SRA shift right arithmetic (b7=b7)
 			result = (int8_t)reg >> 1;
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, 0);
 			return;
 		case 0x06: // SWAP
 			result = ((reg & 0xf0) >> 4) | ((reg & 0xf) << 4);
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, 0);
 			return;
 		case 0x07: // SRL
 			c = BIT(reg, 0);
 			result = reg >> 1;
-			cb_write(cpu, cart, reg_kind, result);
+			cb_write(emu, reg_kind, result);
 			set_flags(cpu, 0 == result, 0, 0, c);
 			return;
 	}
 	assert(0);
 }
 
-static void op_push(Cpu *cpu, Cartridge *cart)
+static void op_push(Emulator *emu)
 {
-	Reg reg = cpu->op.reg1;
+	Reg reg = emu->cpu->op.reg1;
 	assert(!is_8bit_reg(reg));
-	uint16_t data = read_reg(cpu, cpu->op.reg1);
-	stack_push(cpu, cart, data);
+	uint16_t data = read_reg(emu->cpu, emu->cpu->op.reg1);
+	stack_push(emu, data);
 }
 
 /*
@@ -783,12 +790,12 @@ static void op_push(Cpu *cpu, Cartridge *cart)
  value, so all flags are changed based on the 8-bit data that is read
  from memory.
  */
-static void op_pop(Cpu *cpu, Cartridge *cart)
+static void op_pop(Emulator *emu)
 {
-	Reg reg = cpu->op.reg1;
+	Reg reg = emu->cpu->op.reg1;
 	assert(!is_8bit_reg(reg));
-	uint16_t data = stack_pop(cpu, cart);
-	write_reg(cpu, reg, data);
+	uint16_t data = stack_pop(emu);
+	write_reg(emu->cpu, reg, data);
 	// TODO: still to check whether F flags need to be adapted here
 }
 
@@ -863,9 +870,10 @@ static void op_ccf(Cpu *cpu)
 	set_flags(cpu, 2, 0, 0, FLAG_C ^ 1);
 }
 
-void next_op(Cpu *cpu, Cartridge *cart)
+void next_op(Emulator *emu)
 {
-	cpu->opcode = bus_read(cart, cpu->regs.pc++);
+	Cpu *cpu = emu->cpu;
+	cpu->opcode = bus_read(emu, cpu->regs.pc++);
 	cpu->op = get_op_from_opcode(cpu->opcode);
 
 	switch (cpu->op.kind) {
@@ -882,7 +890,7 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			cpu->halted = 1;
 			break;
 		case PRE_CB:
-			op_cb(cpu, cart);
+			op_cb(emu);
 			break;
 		case DI:
 			cpu->ime_flag = 0;
@@ -909,7 +917,7 @@ void next_op(Cpu *cpu, Cartridge *cart)
 		case LD_RR_RR:
 		case LDH_AIMM8_R:
 		case LDH_R_AIMM8:
-			op_ld(cpu, cart);
+			op_ld(emu);
 			break;
 		case ADD_R_R:
 		case ADD_RR_RR:
@@ -917,12 +925,12 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			break;
 		case ADD_R_IMM8:
 		case ADD_RR_IMM8:
-			op_add(cpu, cpu->op.reg1, next_imm8(cpu, cart));
+			op_add(cpu, cpu->op.reg1, next_imm8(emu));
 			break;
 		case ADD_R_ARR:
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-				uint16_t val = bus_read(cart, reg2);
+				uint16_t val = bus_read(emu, reg2);
 				op_add(cpu, cpu->op.reg1, val);
 				break;
 			}
@@ -930,12 +938,12 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			op_sub(cpu, cpu->op.reg1, read_reg(cpu, cpu->op.reg2));
 			break;
 		case SUB_R_IMM8:
-			op_sub(cpu, cpu->op.reg1, next_imm8(cpu, cart));
+			op_sub(cpu, cpu->op.reg1, next_imm8(emu));
 			break;
 		case SUB_R_ARR:
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-				uint16_t val = bus_read(cart, reg2);
+				uint16_t val = bus_read(emu, reg2);
 				op_sub(cpu, cpu->op.reg1, val);
 				break;
 			}
@@ -947,14 +955,14 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			break;
 		case ADC_R_IMM8:
 			assert(REG_A == cpu->op.reg1);
-			op_add(cpu, cpu->op.reg1, next_imm8(cpu, cart)
+			op_add(cpu, cpu->op.reg1, next_imm8(emu)
 					+ FLAG_C);
 			break;
 		case ADC_R_ARR:
 			assert(REG_A == cpu->op.reg1);
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-				uint16_t val = bus_read(cart, reg2);
+				uint16_t val = bus_read(emu, reg2);
 				op_add(cpu, cpu->op.reg1, val + FLAG_C);
 			}
 			break;
@@ -965,26 +973,26 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			break;
 		case SBC_R_IMM8:
 			assert(REG_A == cpu->op.reg1);
-			op_sub(cpu, cpu->op.reg1, next_imm8(cpu, cart)
+			op_sub(cpu, cpu->op.reg1, next_imm8(emu)
 					- FLAG_C);
 			break;
 		case SBC_R_ARR:
 			assert(REG_A == cpu->op.reg1);
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-				uint16_t val = bus_read(cart, reg2);
+				uint16_t val = bus_read(emu, reg2);
 				op_sub(cpu, cpu->op.reg1, val - FLAG_C);
 			}
 			break;
 		case INC_R:
 		case INC_RR:
 		case INC_ARR:
-			op_inc(cpu, cart);
+			op_inc(emu);
 			break;
 		case DEC_R:
 		case DEC_RR:
 		case DEC_ARR:
-			op_dec(cpu, cart);
+			op_dec(emu);
 			break;
 		case AND_R_R:
 			assert(REG_A == cpu->op.reg1);
@@ -992,13 +1000,13 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			break;
 		case AND_R_IMM8:
 			assert(REG_A == cpu->op.reg1);
-			op_and(cpu, next_imm8(cpu, cart));
+			op_and(cpu, next_imm8(emu));
 			break;
 		case AND_R_ARR:
 			assert(REG_A == cpu->op.reg1);
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-				uint16_t val = bus_read(cart, reg2);
+				uint16_t val = bus_read(emu, reg2);
 				op_and(cpu, val);
 			}
 			break;
@@ -1008,13 +1016,13 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			break;
 		case XOR_R_IMM8:
 			assert(REG_A == cpu->op.reg1);
-			op_xor(cpu, next_imm8(cpu, cart));
+			op_xor(cpu, next_imm8(emu));
 			break;
 		case XOR_R_ARR:
 			assert(REG_A == cpu->op.reg1);
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-				uint16_t val = bus_read(cart, reg2);
+				uint16_t val = bus_read(emu, reg2);
 				op_xor(cpu, val);
 			}
 			break;
@@ -1024,13 +1032,13 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			break;
 		case OR_R_IMM8:
 			assert(REG_A == cpu->op.reg1);
-			op_or(cpu, next_imm8(cpu, cart));
+			op_or(cpu, next_imm8(emu));
 			break;
 		case OR_R_ARR:
 			assert(REG_A == cpu->op.reg1);
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-				uint16_t val = bus_read(cart, reg2);
+				uint16_t val = bus_read(emu, reg2);
 				op_or(cpu, val);
 			}
 			break;
@@ -1040,13 +1048,13 @@ void next_op(Cpu *cpu, Cartridge *cart)
 			break;
 		case CP_R_IMM8:
 			assert(REG_A == cpu->op.reg1);
-			op_cp(cpu, next_imm8(cpu, cart));
+			op_cp(cpu, next_imm8(emu));
 			break;
 		case CP_R_ARR:
 			assert(REG_A == cpu->op.reg1);
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
-				uint16_t val = bus_read(cart, reg2);
+				uint16_t val = bus_read(emu, reg2);
 				op_cp(cpu, val);
 			}
 			break;
@@ -1056,10 +1064,10 @@ void next_op(Cpu *cpu, Cartridge *cart)
 		case RET_C:
 		case RET_NZ:
 		case RET_NC:
-			op_jmp(cpu, cart);
+			op_jmp(emu);
 			break;
 		case POP_RR:
-			op_pop(cpu, cart);
+			op_pop(emu);
 			break;
 		case RST_00:
 		case RST_10:
@@ -1069,7 +1077,7 @@ void next_op(Cpu *cpu, Cartridge *cart)
 		case RST_18:
 		case RST_28:
 		case RST_38:
-			op_jmp(cpu, cart);
+			op_jmp(emu);
 			break;
 		case DAA_R:
 			op_daa(cpu);
@@ -1094,7 +1102,7 @@ void next_op(Cpu *cpu, Cartridge *cart)
 		case JR_C_IMM8:
 		case JR_NZ_IMM8:
 		case JR_NC_IMM8:
-			op_jmp(cpu, cart);
+			op_jmp(emu);
 			break;
 		case CALL_IMM16:
 		case CALL_Z_IMM16:
@@ -1102,12 +1110,12 @@ void next_op(Cpu *cpu, Cartridge *cart)
 		case CALL_NZ_IMM16:
 		case CALL_NC_IMM16:
 			if (flag_cond_met(cpu)) {
-				stack_push(cpu, cart, cpu->regs.pc + 2);
+				stack_push(emu, cpu->regs.pc + 2);
 			}
-			op_jmp(cpu, cart);
+			op_jmp(emu);
 			break;
 		case PUSH_RR:
-			op_push(cpu, cart);
+			op_push(emu);
 			break;
 		case RLCA_R:
 		case RRCA_R:
@@ -1139,12 +1147,13 @@ static void print_regs(struct registers regs)
 	printf("PC: %04x\n", regs.pc);
 }
 
-void cpu_print(const Cpu *cpu, const Cartridge *cart)
+void cpu_print(const Emulator *emu)
 {
-	printf("%-13s (%02x %02x %02x) ", op_name(bus_read(cart, cpu->regs.pc)),
-			bus_read(cart, cpu->regs.pc),
-			bus_read(cart, cpu->regs.pc + 1),
-			bus_read(cart, cpu->regs.pc + 2));
+	const Cpu *cpu = emu->cpu;
+	printf("%-13s (%02x %02x %02x) ", op_name(bus_read(emu, cpu->regs.pc)),
+			bus_read(emu, cpu->regs.pc),
+			bus_read(emu, cpu->regs.pc + 1),
+			bus_read(emu, cpu->regs.pc + 2));
 	print_regs(cpu->regs);
 }
 
@@ -1163,6 +1172,16 @@ static struct registers init_regs(void)
 		.pc = 0x100,
 		.sp = 0xfffe,
 	};
+}
+
+uint8_t cpu_ie_reg_read(const Cpu *cpu)
+{
+	return cpu->ie_reg;
+}
+
+void cpu_ie_reg_write(Cpu *cpu, uint8_t data)
+{
+	cpu->ie_reg = data;
 }
 
 Cpu *cpu_init(void)

@@ -21,15 +21,15 @@
    FFFFh IE Register Interrupt enable flags.
  */
 
-uint8_t bus_read(const Cartridge *cart, uint16_t addr)
+uint8_t bus_read(const Emulator *emu, uint16_t addr)
 {
 	if (addr < 0x8000) {
-		return cart_read(cart, addr);
+		return cart_read(emu->cart, addr);
 	} else if (addr < 0xa000) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
 		return 0;
 	} else if (addr < 0xc000) {
-		return cart_read(cart, addr);
+		return cart_read(emu->cart, addr);
 	} else if (addr < 0xe000) {
 		return wram_read(addr);
 	} else if (addr < 0xfe00) {
@@ -43,19 +43,21 @@ uint8_t bus_read(const Cartridge *cart, uint16_t addr)
 		return 0;
 	} else if (addr < 0xff80) {
 		return io_read(addr);
+	} else if (0xffff == addr) {
+		return cpu_ie_reg_read(emu->cpu);
 	} else {
 		return hram_read(addr);
 	}
 }
 
-void bus_write8(Cartridge *cart, uint16_t addr, uint8_t data)
+void bus_write8(Emulator *emu, uint16_t addr, uint8_t data)
 {
 	if (addr < 0x8000) {
 		printf("ERROR: Trying to write to ROM\n");
 	} else if (addr < 0xa000) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
 	} else if (addr < 0xc000) {
-		cart_write(cart, addr, data);
+		cart_write(emu->cart, addr, data);
 	} else if (addr < 0xe000) {
 		wram_write(addr, data);
 	} else if (addr < 0xfe00) {
@@ -67,14 +69,14 @@ void bus_write8(Cartridge *cart, uint16_t addr, uint8_t data)
 	} else if (addr < 0xff80) {
 		io_write(addr, data);
 	} else if (addr == 0xffff) {
-		printf("Write at address '0x%04x' not supported yet\n", addr);
+		cpu_ie_reg_write(emu->cpu, data);
 	} else {
 		hram_write(addr, data);
 	}
 }
 
-void bus_write16(Cartridge *cart, uint16_t addr, uint16_t data)
+void bus_write16(Emulator *emu, uint16_t addr, uint16_t data)
 {
-	bus_write8(cart, addr, data & 0xff);
-	bus_write8(cart, addr + 1, LO_SHIFT(data) & 0xff);
+	bus_write8(emu, addr, data & 0xff);
+	bus_write8(emu, addr + 1, LO_SHIFT(data) & 0xff);
 }

@@ -27,14 +27,13 @@ void *cpu_run(void *p)
 		//if (!(emu->ticks % 100)) (void)getchar();
 		if (!emu->cpu->halted) {
 			printf("%09lx ", emu->ticks);
-			cpu_print(emu->cpu, emu->cart);
-			next_op(emu->cpu, emu->cart);
-			update_transfer_msg(emu->cart);
+			cpu_print(emu);
+			next_op(emu);
+			update_transfer_msg(emu);
 			print_transfer_msg();
 			emu->ticks++;
 		} else if (emu->cpu->ime_flag) {
 			cpu_int_handler(emu);
-			emu->cpu->halted = 0;
 		}
 	}
 	return 0;
