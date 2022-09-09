@@ -17,8 +17,8 @@ static unsigned handle_int(Emulator *emu, enum interrupt it, uint16_t addr)
 {
 	if (emu->cpu->ie_reg & it && emu->cpu->if_reg & it) {
 		int_handler(emu, addr);
+		emu->cpu->if_reg &= ~it;
 		emu->cpu->ime_flag = 0;
-		emu->cpu->if_reg = 0;
 		emu->cpu->halted = 0;
 		return 1;
 	}

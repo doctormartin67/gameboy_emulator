@@ -708,6 +708,10 @@ static void op_cb(Emulator *emu)
 	uint16_t result = 0;
 	uint8_t c = 0;
 
+	if (REG_HL == reg) {
+		emu_ticks(emu, 8);
+	}
+
 	/*
 	 * there's a pattern in the opcodes to determine which bit should be
 	 * checked
@@ -734,7 +738,7 @@ static void op_cb(Emulator *emu)
 			break;
 	}
 
-// https://www.geeksforgeeks.org/rotate-instructions-in-8085/
+	// https://www.geeksforgeeks.org/rotate-instructions-in-8085/
 	switch (bit) {
 		case 0x00: // RLC
 			c = (BIT(reg, 7) ? 1 : 0);

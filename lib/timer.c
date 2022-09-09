@@ -6,10 +6,17 @@
 Timer *timer_init(void)
 {
 	Timer *t = malloc(sizeof(*t));	
+#if 0
 	t->clock = 0;
 	t->div_tima = 0xab00;
 	t->tma = 0x00;
 	t->tac = 0xf8;
+#else
+	t->clock = 0xabcc;
+	t->div_tima = 0xab00;
+	t->tma = 0x00;
+	t->tac = 0x00;
+#endif
 	return t;
 }
 
@@ -72,7 +79,8 @@ void timer_write(Timer *t, uint16_t addr, uint8_t data)
 			t->clock = 0;
 			return;
 		case TIMA_ADDR:
-			t->div_tima &= (0xff00 | data);
+			t->div_tima &= 0xff00;
+			t->div_tima |= data;
 			return;
 		case TMA_ADDR:
 			t->tma = data;

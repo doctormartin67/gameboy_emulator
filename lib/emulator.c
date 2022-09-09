@@ -33,14 +33,17 @@ void *cpu_run(void *p)
 {
 	Emulator *emu = p;
 	while (emu->running) {
-		if (!(emu->ticks % 1024)) (void)getchar();
+		//if (!(emu->ticks % 32)) (void)getchar();
 		if (!emu->cpu->halted) {
 			printf("%09lx ", emu->ticks);
 			cpu_print(emu);
 			next_op(emu);
 			update_transfer_msg(emu);
 			print_transfer_msg();
-		} 
+		} else {
+			// TODO: set halted to false if flags?
+			emu_ticks(emu, 4);
+		}
 		cpu_int_handler(emu);
 	}
 	return 0;
