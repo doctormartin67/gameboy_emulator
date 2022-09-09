@@ -351,16 +351,23 @@ static void op_jmp(Emulator *emu)
 			cpu->regs.pc = read_reg(cpu, cpu->op.reg1);
 			break;
 		case JP_Z_IMM16:
-		case CALL_Z_IMM16:
 		case JP_C_IMM16:
-		case CALL_C_IMM16:
 		case JP_NZ_IMM16:
-		case CALL_NZ_IMM16:
 		case JP_NC_IMM16:
+			imm = next_imm16(emu);
+			if (flag_cond_met(cpu)) {
+				cpu->regs.pc = imm;
+				emu_ticks(emu, 4);
+			}
+			break;
+		case CALL_Z_IMM16:
+		case CALL_C_IMM16:
+		case CALL_NZ_IMM16:
 		case CALL_NC_IMM16:
 			imm = next_imm16(emu);
 			if (flag_cond_met(cpu)) {
 				cpu->regs.pc = imm;
+				emu_ticks(emu, 12);
 			}
 			break;
 		case JR_IMM8:
@@ -374,6 +381,7 @@ static void op_jmp(Emulator *emu)
 			imm = next_imm8(emu);
 			if (flag_cond_met(cpu)) {
 				cpu->regs.pc += (int8_t)imm;
+				emu_ticks(emu, 4);
 			}
 			break;
 		case RETI:
@@ -392,6 +400,7 @@ static void op_jmp(Emulator *emu)
 			if (flag_cond_met(cpu)) {
 				imm = stack_pop(emu);
 				cpu->regs.pc = imm;
+				emu_ticks(emu, 12);
 			}
 			break;
 		case RST_00:
@@ -1129,6 +1138,7 @@ void next_op(Emulator *emu)
 			op_rot(cpu);
 			break;
 	}
+	emu_ticks(emu, cpu->op.ticks);
 }
 
 static void print_flags(uint8_t f)
@@ -1167,7 +1177,7 @@ void cpu_print(const Emulator *emu)
 static struct registers init_regs(void)
 {
 	return (struct registers) {.a = 0x01,
-		.f = 0xB0, // Z-HC
+		.f = 0xb0, // Z-HC
 		.b = 0x00,
 		.c = 0x13,
 		.d = 0x00,
@@ -1203,7 +1213,7 @@ Cpu *cpu_init(void)
 {
 	Cpu *cpu = malloc(sizeof(*cpu));
 	*cpu = (Cpu){.regs = init_regs(), 
-		.ime_flag = 0, .halted = 0, .ie_reg = 0, .if_reg = 0
+		.ime_flag = 0, .halted = 0, .ie_reg = 0, .if_reg = 0xe1
 	};
 	return cpu;
 }

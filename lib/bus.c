@@ -42,7 +42,7 @@ uint8_t bus_read(const Emulator *emu, uint16_t addr)
 		printf("Read at address '0x%04x' not supported yet\n", addr);
 		return 0;
 	} else if (addr < 0xff80) {
-		return io_read(emu->cpu, addr);
+		return io_read(emu, addr);
 	} else if (0xffff == addr) {
 		return cpu_ie_reg_read(emu->cpu);
 	} else {
@@ -67,7 +67,7 @@ void bus_write8(Emulator *emu, uint16_t addr, uint8_t data)
 	} else if (addr < 0xff00) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
 	} else if (addr < 0xff80) {
-		io_write(emu->cpu, addr, data);
+		io_write(emu, addr, data);
 	} else if (addr == 0xffff) {
 		cpu_ie_reg_write(emu->cpu, data);
 	} else {
