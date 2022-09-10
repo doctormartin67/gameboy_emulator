@@ -47,7 +47,7 @@ void timer_tick(Cpu *cpu, Timer *t)
 		t->div_tima++;
 		if ((t->div_tima & 0xff) == 0xff) {
 			t->div_tima = (t->div_tima & 0xff00) | t->tma;
-			cpu_if_reg_write(cpu, INT_TIMER);
+			cpu_request_interrupt(cpu, INT_TIMER);
 		}
 	}
 	

@@ -18,5 +18,5 @@ void update_transfer_msg(Emulator *emu)
 
 void print_transfer_msg(void)
 {
-	if (msg[0]) printf("Transfer message: %s\n", msg);
+	if (msg[0]) printf("Transfer message: %s", msg);
 }

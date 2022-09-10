@@ -221,7 +221,7 @@ static const Op ops[0x100] = {
 	[0xc8] = {.kind = RET_Z, .ticks = 8},
 	[0xc9] = {.kind = RET, .ticks = 16},
 	[0xca] = {.kind = JP_Z_IMM16, .ticks = 12},
-	[0xcb] = {.kind = PRE_CB, .ticks = 8},
+	[0xcb] = {.kind = PRE_CB, .ticks = 12},
 	[0xcc] = {.kind = CALL_Z_IMM16, .ticks = 12},
 	[0xcd] = {.kind = CALL_IMM16, .ticks = 24},
 	[0xce] = {.kind = ADC_R_IMM8, .reg1 = REG_A, .ticks = 8},

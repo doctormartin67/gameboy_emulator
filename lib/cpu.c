@@ -1162,7 +1162,6 @@ static void print_regs(struct registers regs)
 	printf("BC: %02x%02x ", regs.b, regs.c);
 	printf("DE %02x%02x ", regs.d, regs.e);
 	printf("HL: %02x%02x ", regs.h, regs.l);
-	printf("SP: %04x ", regs.sp);
 	printf("PC: %04x\n", regs.pc);
 }
 
@@ -1173,6 +1172,8 @@ void cpu_print(const Emulator *emu)
 			bus_read(emu, cpu->regs.pc),
 			bus_read(emu, cpu->regs.pc + 1),
 			bus_read(emu, cpu->regs.pc + 2));
+	printf("SP%04x: %02x%02x ", cpu->regs.sp, bus_read(emu, cpu->regs.sp),
+			bus_read(emu, cpu->regs.sp + 1));
 	print_regs(cpu->regs);
 }
 
@@ -1208,7 +1209,7 @@ uint8_t cpu_if_reg_read(const Cpu *cpu)
 	return cpu->if_reg;
 }
 
-void cpu_if_reg_write(Cpu *cpu, enum interrupt it)
+void cpu_request_interrupt(Cpu *cpu, enum interrupt it)
 {
 	cpu->if_reg |= it;
 }
@@ -1217,7 +1218,7 @@ Cpu *cpu_init(void)
 {
 	Cpu *cpu = malloc(sizeof(*cpu));
 	*cpu = (Cpu){.regs = init_regs(), 
-		.ime_flag = 0, .halted = 0, .ie_reg = 0, .if_reg = 0xe1
+		.ime_flag = 0, .halted = 0, .ie_reg = 0, .if_reg = 0
 	};
 	return cpu;
 }

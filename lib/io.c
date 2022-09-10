@@ -34,7 +34,7 @@ void io_write(Emulator *emu, uint16_t addr, uint8_t data)
 		timer_write(emu->timer, addr, data);
 		return;
 	} else if (IF_ADDR == addr) {
-		cpu_if_reg_write(emu->cpu, data);
+		emu->cpu->if_reg = data;
 		return;
 	}
 	printf("Write at address '0x%04x' not supported yet\n", addr);

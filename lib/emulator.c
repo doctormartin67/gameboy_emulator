@@ -33,6 +33,7 @@ void *cpu_run(void *p)
 {
 	Emulator *emu = p;
 	while (emu->running) {
+		//if (emu->ticks >= 0x1a9dc8) (void)getchar();
 		//if (!(emu->ticks % 32)) (void)getchar();
 		if (!emu->cpu->halted) {
 			printf("%09lx ", emu->ticks);

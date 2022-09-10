@@ -42,7 +42,7 @@ typedef struct Cpu {
 uint8_t cpu_ie_reg_read(const Cpu *cpu);
 void cpu_ie_reg_write(Cpu *cpu, uint8_t data);
 uint8_t cpu_if_reg_read(const Cpu *cpu);
-void cpu_if_reg_write(Cpu *cpu, enum interrupt it);
+void cpu_request_interrupt(Cpu *cpu, enum interrupt it);
 Cpu *cpu_init(void);
 
 #endif
