@@ -481,6 +481,26 @@ static void op_add(Cpu *cpu, Reg reg_kind, uint16_t val)
 	}
 }
 
+static void op_adc(Cpu *cpu, uint16_t val)
+{
+	uint16_t reg = read_reg(cpu, REG_A);
+	uint8_t z = Z_FLAG(reg, val + FLAG_C, +);
+	uint8_t h = ((reg & 0xf) + (val & 0xf) + FLAG_C) > 0xf;
+	uint8_t c = ((reg & 0xff) + (val & 0xff) + FLAG_C) > 0xff;
+	write_reg(cpu, REG_A, reg + val + FLAG_C);
+	set_flags(cpu, z, 0, h, c);
+}
+
+static void op_sbc(Cpu *cpu, uint16_t val)
+{
+	uint16_t reg = read_reg(cpu, REG_A);
+	uint8_t z = Z_FLAG(reg, val + FLAG_C, -);
+	uint8_t h = (uint16_t)((reg & 0xf) - (val & 0xf) - FLAG_C) > 0xf;
+	uint8_t c = (uint16_t)((reg & 0xff) - (val & 0xff) - FLAG_C) > 0xff;
+	write_reg(cpu, REG_A, reg - val - FLAG_C);
+	set_flags(cpu, z, 1, h, c);
+}
+
 static void op_sub(Cpu *cpu, Reg reg_kind, uint16_t val)
 {
 	OP(-, reg_kind, 1, 3, 1, 3, 3, uint16_t);
@@ -971,38 +991,34 @@ void next_op(Emulator *emu)
 			break;
 		case ADC_R_R:
 			assert(REG_A == cpu->op.reg1);
-			op_add(cpu, cpu->op.reg1, read_reg(cpu, cpu->op.reg2)
-					+ FLAG_C);
+			op_adc(cpu, read_reg(cpu, cpu->op.reg2));
 			break;
 		case ADC_R_IMM8:
 			assert(REG_A == cpu->op.reg1);
-			op_add(cpu, cpu->op.reg1, next_imm8(emu)
-					+ FLAG_C);
+			op_adc(cpu, next_imm8(emu));
 			break;
 		case ADC_R_ARR:
 			assert(REG_A == cpu->op.reg1);
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
-				op_add(cpu, cpu->op.reg1, val + FLAG_C);
+				op_adc(cpu, val);
 			}
 			break;
 		case SBC_R_R:
 			assert(REG_A == cpu->op.reg1);
-			op_sub(cpu, cpu->op.reg1, read_reg(cpu, cpu->op.reg2)
-					- FLAG_C);
+			op_sbc(cpu, read_reg(cpu, cpu->op.reg2));
 			break;
 		case SBC_R_IMM8:
 			assert(REG_A == cpu->op.reg1);
-			op_sub(cpu, cpu->op.reg1, next_imm8(emu)
-					- FLAG_C);
+			op_sbc(cpu, next_imm8(emu));
 			break;
 		case SBC_R_ARR:
 			assert(REG_A == cpu->op.reg1);
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
-				op_sub(cpu, cpu->op.reg1, val - FLAG_C);
+				op_sbc(cpu, val);
 			}
 			break;
 		case INC_R:
