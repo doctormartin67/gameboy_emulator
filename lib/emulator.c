@@ -34,7 +34,7 @@ void *cpu_run(void *p)
 	Emulator *emu = p;
 	while (emu->running) {
 		//if (emu->ticks >= 0x1a9dc8) (void)getchar();
-		//if (!(emu->ticks % 32)) (void)getchar();
+		//if (!(emu->ticks % 2048)) (void)getchar();
 		if (!emu->cpu->halted) {
 			printf("%09lx ", emu->ticks);
 			cpu_print(emu);
@@ -42,8 +42,14 @@ void *cpu_run(void *p)
 			update_transfer_msg(emu);
 			print_transfer_msg();
 		} else {
-			// TODO: set halted to false if flags?
 			emu_ticks(emu, 4);
+			/* 
+			 * TODO: understand the below code, why should this
+			 * set it to false again?
+			 */
+			if (emu->cpu->if_reg) {
+				emu->cpu->halted = 0;
+			}
 		}
 		cpu_int_handler(emu);
 	}

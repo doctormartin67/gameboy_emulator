@@ -425,33 +425,33 @@ static void op_jmp(Emulator *emu)
 #define SET_FLAG(op, f, F, cond) \
 	uint8_t f = (3 == cond ? F##_FLAG(reg, val, op) : cond);
 
-#define OP(op, reg_kind, write, z_val, n_val, h_val, c_val) \
+#define OP(op, reg_kind, write, z_val, n_val, h_val, c_val, cast) \
 	uint16_t reg = read_reg(cpu, reg_kind); \
 	SET_FLAG(op, z, Z, z_val); \
 	SET_FLAG(op, n, N, n_val); \
 	SET_FLAG(op, h, H, h_val); \
 	SET_FLAG(op, c, C, c_val); \
 	if (write) { \
-		write_reg(cpu, reg_kind, reg op val); \
+		write_reg(cpu, reg_kind, reg op (cast)val); \
 	} \
 	set_flags(cpu, z, n, h, c);
 
 static void op_and(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	OP(&, cpu->op.reg1, 1, 3, 0, 1, 0);
+	OP(&, cpu->op.reg1, 1, 3, 0, 1, 0, uint16_t);
 }
 
 static void op_or(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	OP(|, cpu->op.reg1, 1, 3, 0, 0, 0);
+	OP(|, cpu->op.reg1, 1, 3, 0, 0, 0, uint16_t);
 }
 
 static void op_xor(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	OP(^, cpu->op.reg1, 1, 3, 0, 0, 0);
+	OP(^, cpu->op.reg1, 1, 3, 0, 0, 0, uint16_t);
 }
 
 static void op_add(Cpu *cpu, Reg reg_kind, uint16_t val)
@@ -459,17 +459,20 @@ static void op_add(Cpu *cpu, Reg reg_kind, uint16_t val)
 	switch (reg_kind) {
 		case REG_A:
 			{
-				OP(+, reg_kind, 1, 3, 0, 3, 3);
+				OP(+, reg_kind, 1, 3, 0, 3, 3, uint16_t);
 				break;
 			}
 		case REG_HL:
 			{
-				OP(+, reg_kind, 1, 2, 0, 3, 3);
+				OP(+, reg_kind, 1, 2, 0, 3, 3, uint16_t);
+				h = H_FLAG16(reg, val, +);
+				c = C_FLAG16(reg, val, +);
+				set_flags(cpu, 2, 0, h, c);
 				break;
 			}
 		case REG_SP:
 			{
-				OP(+, reg_kind, 1, 0, 0, 3, 3);
+				OP(+, reg_kind, 1, 0, 0, 3, 3, int8_t);
 				break;
 			}
 		default:
@@ -480,13 +483,13 @@ static void op_add(Cpu *cpu, Reg reg_kind, uint16_t val)
 
 static void op_sub(Cpu *cpu, Reg reg_kind, uint16_t val)
 {
-	OP(-, reg_kind, 1, 3, 1, 3, 3);
+	OP(-, reg_kind, 1, 3, 1, 3, 3, uint16_t);
 }
 
 static void op_cp(Cpu *cpu, uint16_t val)
 {
 	assert(REG_A == cpu->op.reg1);
-	OP(-, cpu->op.reg1, 0, 3, 1, 3, 3);
+	OP(-, cpu->op.reg1, 0, 3, 1, 3, 3, uint16_t);
 }
 
 static void add_to_addr(Emulator *emu, uint16_t addr, uint8_t val)
@@ -503,18 +506,18 @@ static void op_inc(Emulator *emu)
 	switch (cpu->op.kind) {
 		case INC_R:
 			{
-				OP(+, cpu->op.reg1, 1, 3, 0, 3, 2);
+				OP(+, cpu->op.reg1, 1, 3, 0, 3, 2, uint16_t);
 				break;
 			}
 		case INC_RR:
 		case LD_ARRI_R:
 			{
-				OP(+, cpu->op.reg1, 1, 2, 2, 2, 2);
+				OP(+, cpu->op.reg1, 1, 2, 2, 2, 2, uint16_t);
 				break;
 			}
 		case LD_R_ARRI:
 			{
-				OP(+, cpu->op.reg2, 1, 2, 2, 2, 2);
+				OP(+, cpu->op.reg2, 1, 2, 2, 2, 2, uint16_t);
 				break;
 			}
 		case INC_ARR:
@@ -538,18 +541,18 @@ static void op_dec(Emulator *emu)
 	switch (cpu->op.kind) {
 		case DEC_R:
 			{
-				OP(-, cpu->op.reg1, 1, 3, 1, 3, 2);
+				OP(-, cpu->op.reg1, 1, 3, 1, 3, 2, uint16_t);
 				break;
 			}
 		case DEC_RR:
 		case LD_ARRD_R:
 			{
-				OP(-, cpu->op.reg1, 1, 2, 2, 2, 2);
+				OP(-, cpu->op.reg1, 1, 2, 2, 2, 2, uint16_t);
 				break;
 			}
 		case LD_R_ARRD:
 			{
-				OP(-, cpu->op.reg2, 1, 2, 2, 2, 2);
+				OP(-, cpu->op.reg2, 1, 2, 2, 2, 2, uint16_t);
 				break;
 			}
 		case DEC_ARR:

@@ -15,6 +15,8 @@
 #define N_FLAG(a, b, op) BIT((a) op (b), sizeof((a) op (b)) - 1)
 #define H_FLAG(a, b, op) (uint64_t)(((a) & 0xf) op ((b) & 0xf)) > 0xf
 #define C_FLAG(a, b, op) (uint64_t)(((a) & 0xff) op ((b) & 0xff)) > 0xff
+#define H_FLAG16(a, b, op) (uint64_t)(((a) & 0xfff) op ((b) & 0xfff)) > 0xfff
+#define C_FLAG16(a, b, op) (uint64_t)(((a) & 0xffff) op ((b) & 0xffff)) > 0xffff
 
 struct registers {
 	uint8_t a;
