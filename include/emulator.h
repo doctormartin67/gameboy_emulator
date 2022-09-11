@@ -18,7 +18,7 @@ int emu_main(int argc, char *argv[]);
 Emulator *emu_init(Cpu *cpu, Cartridge *cart, Timer *timer);
 void emu_ticks(Emulator *emu, unsigned ticks);
 void emu_kill(Emulator *emu);
-void cpu_print(const Emulator *emu);
+void print_status(Emulator *emu);
 void next_op(Emulator *emu);
 void cpu_int_handler(Emulator *emu);
 

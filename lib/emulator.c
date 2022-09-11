@@ -4,7 +4,6 @@
 #include <assert.h>
 #include "emulator.h"
 #include "ui.h"
-#include "transfer.h"
 #include "interrupts.h"
 
 Emulator *emu_init(Cpu *cpu, Cartridge *cart, Timer *timer)
@@ -36,11 +35,8 @@ void *cpu_run(void *p)
 		//if (emu->ticks >= 0x1a9dc8) (void)getchar();
 		//if (!(emu->ticks % 2048)) (void)getchar();
 		if (!emu->cpu->halted) {
-			printf("%09lx ", emu->ticks);
-			cpu_print(emu);
+			print_status(emu);
 			next_op(emu);
-			update_transfer_msg(emu);
-			print_transfer_msg();
 		} else {
 			emu_ticks(emu, 4);
 			/* 

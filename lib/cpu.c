@@ -3,6 +3,7 @@
 #include "cpu.h"
 #include "bus.h"
 #include "stack.h"
+#include "transfer.h"
 #include "common.h"
 
 // https://gbdev.io/pandocs/CPU_Registers_and_Flags.html
@@ -1114,6 +1115,7 @@ void next_op(Emulator *emu)
 		case RST_18:
 		case RST_28:
 		case RST_38:
+			stack_push(emu, cpu->regs.pc);
 			op_jmp(emu);
 			break;
 		case DAA_R:
@@ -1184,7 +1186,7 @@ static void print_regs(struct registers regs)
 	printf("PC: %04x\n", regs.pc);
 }
 
-void cpu_print(const Emulator *emu)
+static void cpu_print(const Emulator *emu)
 {
 	const Cpu *cpu = emu->cpu;
 	printf("%-13s (%02x %02x %02x) ", op_name(bus_read(emu, cpu->regs.pc)),
@@ -1194,6 +1196,14 @@ void cpu_print(const Emulator *emu)
 	printf("SP%04x: %02x%02x ", cpu->regs.sp, bus_read(emu, cpu->regs.sp),
 			bus_read(emu, cpu->regs.sp + 1));
 	print_regs(cpu->regs);
+}
+
+void print_status(Emulator *emu)
+{
+	printf("%09lx ", emu->ticks);
+	cpu_print(emu);
+	update_transfer_msg(emu);
+	print_transfer_msg();
 }
 
 // https://gbdev.io/pandocs/Power_Up_Sequence.html?highlight=d8#cpu-registers
