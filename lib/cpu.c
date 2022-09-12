@@ -513,11 +513,11 @@ static void op_cp(Cpu *cpu, uint16_t val)
 	OP(-, cpu->op.reg1, 0, 3, 1, 3, 3, uint16_t);
 }
 
-static void add_to_addr(Emulator *emu, uint16_t addr, uint8_t val)
+static uint8_t add_to_addr(Emulator *emu, uint16_t addr, uint8_t val)
 {
-	uint8_t new_val = bus_read(emu, addr);
-	new_val += val;
-	bus_write8(emu, addr, new_val);
+	uint8_t old_val = bus_read(emu, addr);
+	bus_write8(emu, addr, old_val + val);
+	return old_val;
 }
 
 static void op_inc(Emulator *emu)
@@ -543,10 +543,11 @@ static void op_inc(Emulator *emu)
 			}
 		case INC_ARR:
 			{
+				assert(REG_HL == cpu->op.reg1);
 				uint16_t reg = read_reg(cpu, cpu->op.reg1);
-				add_to_addr(emu, reg, 1);
-				set_flags(cpu, Z_FLAG(reg, 1, +), 0,
-						H_FLAG(reg, 1, +), 2);
+				uint16_t old_val = add_to_addr(emu, reg, 1);
+				set_flags(cpu, Z_FLAG(old_val, 1, +), 0,
+						H_FLAG(old_val, 1, +), 2);
 				break;
 			}
 		default:
@@ -578,10 +579,11 @@ static void op_dec(Emulator *emu)
 			}
 		case DEC_ARR:
 			{
+				assert(REG_HL == cpu->op.reg1);
 				uint16_t reg = read_reg(cpu, cpu->op.reg1);
-				add_to_addr(emu, reg, -1);
-				set_flags(cpu, Z_FLAG(reg, 1, -), 1,
-						H_FLAG(reg, 1, -), 2);
+				uint16_t old_val = add_to_addr(emu, reg, -1);
+				set_flags(cpu, Z_FLAG(old_val, 1, -), 1,
+						H_FLAG(old_val, 1, -), 2);
 				break;
 			}
 		default:
@@ -732,8 +734,9 @@ static void op_cb(Emulator *emu)
 	uint16_t result = 0;
 	uint8_t c = 0;
 
-	if (REG_HL == reg) {
+	if (REG_HL == reg_kind) {
 		emu_ticks(emu, 16);
+		reg = bus_read(emu, reg);
 	} else {
 		assert(is_8bit_reg(reg_kind));
 		emu_ticks(emu, 8);
