@@ -733,6 +733,9 @@ static void op_cb(Emulator *emu)
 	uint8_t c = 0;
 
 	if (REG_HL == reg) {
+		emu_ticks(emu, 16);
+	} else {
+		assert(is_8bit_reg(reg_kind));
 		emu_ticks(emu, 8);
 	}
 
@@ -768,47 +771,52 @@ static void op_cb(Emulator *emu)
 			c = (BIT(reg, 7) ? 1 : 0);
 			result = (reg << 1) | (c ? 1 : 0);
 			cb_write(emu, reg_kind, result);
-			set_flags(cpu, 0 == result, 0, 0, c);
+			set_flags(cpu, Z_FLAG(result, 0, +), 0, 0, c);
 			return;
 		case 0x01: // RRC
 			c = BIT(reg, 0);
 			result = (reg >> 1) | (c ? 1 << 7 : 0);
 			cb_write(emu, reg_kind, result);
-			set_flags(cpu, 0 == result, 0, 0, c);
+			set_flags(cpu, Z_FLAG(result, 0, +), 0, 0, c);
 			return;
 		case 0x02: // RL
 			c = (BIT(reg, 7) ? 1 : 0);
 			result = (reg << 1) | (FLAG_C ? 1 : 0);
 			cb_write(emu, reg_kind, result);
-			set_flags(cpu, 0 == result, 0, 0, c);
+			set_flags(cpu, Z_FLAG(result, 0, +), 0, 0, c);
 			return;
 		case 0x03: // RR
 			c = BIT(reg, 0);
 			result = (reg >> 1) | (FLAG_C ? 1 << 7 : 0);
 			cb_write(emu, reg_kind, result);
-			set_flags(cpu, 0 == result, 0, 0, c);
+			set_flags(cpu, Z_FLAG(result, 0, +), 0, 0, c);
 			return;
 		case 0x04: // SLA
 			c = (BIT(reg, 7) ? 1 : 0);
 			result = reg << 1;
 			cb_write(emu, reg_kind, result);
-			set_flags(cpu, 0 == result, 0, 0, c);
+			set_flags(cpu, Z_FLAG(result, 0, +), 0, 0, c);
 			return;
 		case 0x05: // SRA shift right arithmetic (b7=b7)
+			/*
+			 * CAREFUL! flags in the matrix are wrong for this
+			 * opcode
+			 */
+			c = BIT(reg, 0);
 			result = (int8_t)reg >> 1;
 			cb_write(emu, reg_kind, result);
-			set_flags(cpu, 0 == result, 0, 0, 0);
+			set_flags(cpu, Z_FLAG(result, 0, +), 0, 0, c);
 			return;
 		case 0x06: // SWAP
 			result = ((reg & 0xf0) >> 4) | ((reg & 0xf) << 4);
 			cb_write(emu, reg_kind, result);
-			set_flags(cpu, 0 == result, 0, 0, 0);
+			set_flags(cpu, Z_FLAG(result, 0, +), 0, 0, 0);
 			return;
 		case 0x07: // SRL
 			c = BIT(reg, 0);
 			result = reg >> 1;
 			cb_write(emu, reg_kind, result);
-			set_flags(cpu, 0 == result, 0, 0, c);
+			set_flags(cpu, Z_FLAG(result, 0, +), 0, 0, c);
 			return;
 	}
 	assert(0);
