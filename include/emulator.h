@@ -4,6 +4,7 @@
 #include "cpu.h"
 #include "cartridge.h"
 #include "timer.h"
+#include "ppu.h"
 
 typedef struct Emulator {
 	unsigned running;
@@ -12,10 +13,11 @@ typedef struct Emulator {
 	Cpu *cpu;
 	Cartridge *cart;
 	Timer *timer;
+	Ppu *ppu;
 } Emulator;
 
 int emu_main(int argc, char *argv[]);
-Emulator *emu_init(Cpu *cpu, Cartridge *cart, Timer *timer);
+Emulator *emu_init(Cpu *cpu, Cartridge *cart, Timer *timer, Ppu *ppu);
 void emu_ticks(Emulator *emu, unsigned ticks);
 void emu_kill(Emulator *emu);
 void print_status(Emulator *emu);

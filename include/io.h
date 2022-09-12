@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "emulator.h"
 
+#define IO_ADDR 0xff00
 #define SB_ADDR 0xff01
 #define SC_ADDR 0xff02
 #define TIMER_ADDR(a) ((a) < 0xff08 && (a) > 0xff03)

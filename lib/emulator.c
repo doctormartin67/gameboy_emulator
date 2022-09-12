@@ -6,12 +6,12 @@
 #include "ui.h"
 #include "interrupts.h"
 
-Emulator *emu_init(Cpu *cpu, Cartridge *cart, Timer *timer)
+Emulator *emu_init(Cpu *cpu, Cartridge *cart, Timer *timer, Ppu *ppu)
 {
 	Emulator *emu = malloc(sizeof(*emu));
 	*emu = (Emulator){
 		.running = 1, .playing = 0, .ticks = 0,
-			.cpu = cpu, .cart = cart, .timer = timer};
+			.cpu = cpu, .cart = cart, .timer = timer, .ppu = ppu};
 	return emu;
 }
 
@@ -62,7 +62,8 @@ int emu_main(int argc, char *argv[])
 	Cartridge *cart = cart_init(argv[1]);
 	Cpu *cpu = cpu_init();
 	Timer *timer = timer_init();
-	Emulator *emu = emu_init(cpu, cart, timer);
+	Ppu *ppu = ppu_init();
+	Emulator *emu = emu_init(cpu, cart, timer, ppu);
 	ui_init();
 
 	cart_print(cart);

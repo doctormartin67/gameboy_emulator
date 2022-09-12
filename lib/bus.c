@@ -3,6 +3,7 @@
 #include "bus.h"
 #include "ram.h"
 #include "io.h"
+#include "ppu.h"
 #include "common.h"
 
 // file:///home/doctormartin67/Downloads/The%20Cycle-Accurate%20Game%20Boy%20Docs.pdf
@@ -23,25 +24,23 @@
 
 uint8_t bus_read(const Emulator *emu, uint16_t addr)
 {
-	if (addr < 0x8000) {
+	if (addr < VRAM_ADDR) {
 		return cart_read(emu->cart, addr);
 	} else if (addr < 0xa000) {
-		printf("Read at address '0x%04x' not supported yet\n", addr);
-		return 0;
-	} else if (addr < 0xc000) {
+		return ppu_vram_read(emu->ppu, addr);
+	} else if (addr < RAM_ADDR) {
 		return cart_read(emu->cart, addr);
 	} else if (addr < 0xe000) {
 		return wram_read(addr);
-	} else if (addr < 0xfe00) {
+	} else if (addr < OAM_ADDR) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
 		return 0;
 	} else if (addr < 0xfea0) {
+		return ppu_oam_read(emu->ppu, addr);
+	} else if (addr < IO_ADDR) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
 		return 0;
-	} else if (addr < 0xff00) {
-		printf("Read at address '0x%04x' not supported yet\n", addr);
-		return 0;
-	} else if (addr < 0xff80) {
+	} else if (addr < HRAM_ADDR) {
 		return io_read(emu, addr);
 	} else if (0xffff == addr) {
 		return cpu_ie_reg_read(emu->cpu);
@@ -52,21 +51,21 @@ uint8_t bus_read(const Emulator *emu, uint16_t addr)
 
 void bus_write8(Emulator *emu, uint16_t addr, uint8_t data)
 {
-	if (addr < 0x8000) {
+	if (addr < VRAM_ADDR) {
 		printf("ERROR: Trying to write to ROM\n");
 	} else if (addr < 0xa000) {
-		printf("Write at address '0x%04x' not supported yet\n", addr);
-	} else if (addr < 0xc000) {
+		ppu_vram_write(emu->ppu, addr, data);
+	} else if (addr < RAM_ADDR) {
 		cart_write(emu->cart, addr, data);
 	} else if (addr < 0xe000) {
 		wram_write(addr, data);
-	} else if (addr < 0xfe00) {
+	} else if (addr < OAM_ADDR) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
 	} else if (addr < 0xfea0) {
+		ppu_oam_write(emu->ppu, addr, data);
+	} else if (addr < IO_ADDR) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
-	} else if (addr < 0xff00) {
-		printf("Write at address '0x%04x' not supported yet\n", addr);
-	} else if (addr < 0xff80) {
+	} else if (addr < HRAM_ADDR) {
 		io_write(emu, addr, data);
 	} else if (addr == 0xffff) {
 		cpu_ie_reg_write(emu->cpu, data);

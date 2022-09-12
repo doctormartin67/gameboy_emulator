@@ -3,9 +3,14 @@
 
 #include <stdint.h>
 
+#define RAM_ADDR 0xc000
+#define HRAM_ADDR 0xff80
+#define WRAM_SIZE 0x2000
+#define HRAM_SIZE 0x80
+
 typedef struct Ram {
-	uint8_t wram[0x2000];
-	uint8_t hram[0x80];
+	uint8_t wram[WRAM_SIZE];
+	uint8_t hram[HRAM_SIZE];
 } Ram;
 
 uint8_t wram_read(uint16_t addr);

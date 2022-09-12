@@ -25,28 +25,28 @@ static Ram ram;
 
 uint8_t wram_read(uint16_t addr)
 {
-	addr -= 0xc000;
+	addr -= RAM_ADDR;
 	assert(addr < sizeof(ram.wram));
 	return ram.wram[addr];
 }
 
 void wram_write(uint16_t addr, uint8_t data)
 {
-	addr -= 0xc000;
+	addr -= RAM_ADDR;
 	assert(addr < sizeof(ram.wram));
 	ram.wram[addr] = data;
 }
 
 uint8_t hram_read(uint16_t addr)
 {
-	addr -= 0xff80;
+	addr -= HRAM_ADDR;
 	assert(addr < sizeof(ram.hram));
 	return ram.hram[addr];
 }
 
 void hram_write(uint16_t addr, uint8_t data)
 {
-	addr -= 0xff80;
+	addr -= HRAM_ADDR;
 	assert(addr < sizeof(ram.hram));
 	ram.hram[addr] = data;
 }
