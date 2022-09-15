@@ -77,6 +77,7 @@ int emu_main(int argc, char *argv[])
 
 	while(emu->running) {
 		ui_handle_events(emu);
+		ui_update(emu);
 	}
 	return 0;
 }

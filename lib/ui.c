@@ -1,7 +1,12 @@
+#include <assert.h>
 #include "ui.h"
+#include "bus.h"
+#include "common.h"
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
+static SDL_Texture *texture;
+static SDL_Surface *surface;
 
 void ui_init(void)
 {
@@ -13,16 +18,129 @@ void ui_init(void)
 	window = SDL_CreateWindow("GAME",
 			SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_FLAGS);
-	if (!window) {
-		printf("Unable to create window\n");
-		exit(1);
-	}
+	assert(window);
 
 	renderer = SDL_CreateRenderer(window, -1, RENDERER_FLAGS);
-	if (!renderer) {
-		printf("Unable to create renderer\n");
-		exit(1);
+	assert(renderer);
+
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888,
+			SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
+	assert(texture);
+
+	surface = SDL_CreateRGBSurface(0, WINDOW_WIDTH, WINDOW_HEIGHT, 32,
+			RMASK, GMASK, BMASK, AMASK);
+	assert(surface);
+}
+
+/*
+ * annoyingly, I could only get this function to work where red and blue are
+ * reversed, so I created these macros to enfasize that fact.
+ */
+#define RED 0x11
+#define GREEN 0x11
+#define BLUE 0x11
+
+static void fill_surface(void)
+{
+	uint32_t grey = SDL_MapRGB(surface->format, BLUE, GREEN, RED);
+	assert(!SDL_FillRect(surface, 0, grey));
+}
+
+#undef RED
+#undef GREEN
+#undef BLUE
+
+// https://gbdev.io/pandocs/Tile_Data.html
+/*
+ * 16 * 24 = 384
+ */
+enum {
+	ROWS = 16,
+	COLS = 24,
+	ROW_SIZE = 2,
+	TILE_SIZE = 16,
+};
+
+static uint16_t read_pixel_row(const Emulator *emu, unsigned row,
+		unsigned num_tile)
+{
+	uint16_t addr 
+		= TILE_ADDR
+		+ num_tile * TILE_SIZE
+		+ row * ROW_SIZE;
+	assert(addr > TILE_ADDR - 1);
+	assert(addr < TILE_END_ADDR);
+	assert(num_tile < ROWS * COLS);
+
+	uint8_t byte1 = bus_read(emu, addr);
+	uint8_t byte2 = bus_read(emu, addr + 1);
+	return (0x0000 | byte1) | ((0x0000 | byte2) << 8);
+}
+
+static uint8_t colors[] = {0xff, 0xa0, 0x50, 0x00};
+
+static void update_pixel(unsigned tile_x, unsigned tile_y, unsigned pixel_row,
+		unsigned pixel_col, uint8_t color)
+{
+	SDL_Rect rc;
+	rc.x = (tile_x * PIXELS + pixel_col) * SCALE;
+	rc.y = (tile_y * PIXELS + pixel_row) * SCALE;
+	rc.w = SCALE;
+	rc.h = SCALE;
+	uint32_t shade = SDL_MapRGB(surface->format, colors[color],
+			colors[color], colors[color]);
+	assert(!SDL_FillRect(surface, &rc, shade));
+}
+
+static void update_pixel_row(const Emulator *emu, unsigned tile_x,
+		unsigned tile_y, unsigned row, unsigned num_tile)
+{
+	uint16_t data = read_pixel_row(emu, row, num_tile);
+	uint8_t byte1 = data;
+	uint8_t byte2 = data >> 8;
+	uint8_t color = 0;
+
+	for (unsigned col = 0; col < PIXELS; col++) {
+		color = (BIT(byte1, PIXELS - 1 - col) ? 1 : 0) << 1;
+		color |= (BIT(byte2, PIXELS - 1 - col) ? 1 : 0);
+		assert(color < 0x4);
+		update_pixel(tile_x, tile_y, row, col, color);
 	}
+}
+
+static void update_tile(const Emulator *emu, unsigned tile_x, unsigned tile_y,
+		unsigned num_tile)
+{
+	for (unsigned row = 0; row < PIXELS; row++) {
+		update_pixel_row(emu, tile_x, tile_y, row, num_tile);
+	}
+}
+
+static void update_tiles(const Emulator *emu)
+{
+	unsigned num_tile = 0;
+	for (unsigned y = 0; y < COLS; y++) {
+		for (unsigned x = 0; x < ROWS; x++) {
+			update_tile(emu, x, y, num_tile++);
+		}
+	}
+}
+
+static void ui_update_window(const Emulator *emu)
+{
+	fill_surface();
+	update_tiles(emu);
+
+	assert(!SDL_UpdateTexture(texture, 0, surface->pixels,
+				surface->pitch));
+	assert(!SDL_RenderClear(renderer));
+	assert(!SDL_RenderCopy(renderer, texture, 0, 0));
+	SDL_RenderPresent(renderer);
+}
+
+void ui_update(const Emulator *emu)
+{
+	ui_update_window(emu);
 }
 
 void ui_handle_events(Emulator *emu)
@@ -30,7 +148,7 @@ void ui_handle_events(Emulator *emu)
 	SDL_Event e;
 	while (SDL_PollEvent(&e) > 0) {
 		if (SDL_WINDOWEVENT == e.type
-			&& SDL_WINDOWEVENT_CLOSE == e.window.event) {
+				&& SDL_WINDOWEVENT_CLOSE == e.window.event) {
 			emu_kill(emu);
 		}
 	}

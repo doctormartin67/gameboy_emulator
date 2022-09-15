@@ -14,21 +14,11 @@ static unsigned is_8bit_reg(Reg reg)
 		case REG_NONE:
 			assert(0);
 			break;
-		case REG_A:
-		case REG_B:
-		case REG_D:
-		case REG_H:
-		case REG_F:
-		case REG_C:
-		case REG_E:
-		case REG_L:
+		case REG_A: case REG_B: case REG_D: case REG_H: case REG_F:
+		case REG_C: case REG_E: case REG_L:
 			return 1;
-		case REG_AF:
-		case REG_BC:
-		case REG_DE:
-		case REG_HL:
-		case REG_SP:
-		case REG_PC:
+		case REG_AF: case REG_BC: case REG_DE: case REG_HL:
+		case REG_SP: case REG_PC:
 			return 0;
 		default:
 			assert(0);
@@ -96,22 +86,12 @@ static uint8_t read_reg8(const Cpu *cpu, Reg reg)
 		case REG_NONE:
 			assert(0);
 			break;
-		case REG_A:
-		case REG_B:
-		case REG_D:
-		case REG_H:
+		case REG_A: case REG_B: case REG_D: case REG_H:
 			return LO_SHIFT(read_reg16(cpu, reg));
-		case REG_F:
-		case REG_C:
-		case REG_E:
-		case REG_L:
+		case REG_F: case REG_C: case REG_E: case REG_L:
 			return read_reg16(cpu, reg);
-		case REG_AF:
-		case REG_BC:
-		case REG_DE:
-		case REG_HL:
-		case REG_SP:
-		case REG_PC:
+		case REG_AF: case REG_BC: case REG_DE: case REG_HL:
+		case REG_SP: case REG_PC:
 			assert(0);
 			break;
 		default:
@@ -159,12 +139,8 @@ static void write_reg8(Cpu *cpu, Reg reg, uint8_t byte)
 		case REG_L:
 			cpu->regs.l = byte;
 			break;
-		case REG_AF:
-		case REG_BC:
-		case REG_DE:
-		case REG_HL:
-		case REG_SP:
-		case REG_PC:
+		case REG_AF: case REG_BC: case REG_DE: case REG_HL:
+		case REG_SP: case REG_PC:
 			printf("Expected 8 bit register, got 16\n");
 			exit(1);
 			break;
@@ -180,14 +156,8 @@ static void write_reg16(Cpu *cpu, Reg reg, uint16_t word)
 		case REG_NONE:
 			assert(0);
 			break;
-		case REG_A:
-		case REG_B:
-		case REG_D:
-		case REG_H:
-		case REG_F:
-		case REG_C:
-		case REG_E:
-		case REG_L:
+		case REG_A: case REG_B: case REG_D: case REG_H: case REG_F:
+		case REG_C: case REG_E: case REG_L:
 			printf("Expected 16 bit register, got 8\n");
 			exit(1);
 			break;
@@ -530,8 +500,7 @@ static void op_inc(Emulator *emu)
 				OP(+, cpu->op.reg1, 1, 3, 0, 3, 2, uint16_t);
 				break;
 			}
-		case INC_RR:
-		case LD_ARRI_R:
+		case INC_RR: case LD_ARRI_R:
 			{
 				OP(+, cpu->op.reg1, 1, 2, 2, 2, 2, uint16_t);
 				break;
@@ -566,8 +535,7 @@ static void op_dec(Emulator *emu)
 				OP(-, cpu->op.reg1, 1, 3, 1, 3, 2, uint16_t);
 				break;
 			}
-		case DEC_RR:
-		case LD_ARRD_R:
+		case DEC_RR: case LD_ARRD_R:
 			{
 				OP(-, cpu->op.reg1, 1, 2, 2, 2, 2, uint16_t);
 				break;
@@ -1033,14 +1001,10 @@ void next_op(Emulator *emu)
 				op_sbc(cpu, val);
 			}
 			break;
-		case INC_R:
-		case INC_RR:
-		case INC_ARR:
+		case INC_R: case INC_RR: case INC_ARR:
 			op_inc(emu);
 			break;
-		case DEC_R:
-		case DEC_RR:
-		case DEC_ARR:
+		case DEC_R: case DEC_RR: case DEC_ARR:
 			op_dec(emu);
 			break;
 		case AND_R_R:
@@ -1167,10 +1131,7 @@ void next_op(Emulator *emu)
 		case PUSH_RR:
 			op_push(emu);
 			break;
-		case RLCA_R:
-		case RRCA_R:
-		case RLA_R:
-		case RRA_R:
+		case RLCA_R: case RRCA_R: case RLA_R: case RRA_R:
 			op_rot(cpu);
 			break;
 	}
