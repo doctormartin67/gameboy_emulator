@@ -23,5 +23,6 @@ void emu_kill(Emulator *emu);
 void print_status(Emulator *emu);
 void next_op(Emulator *emu);
 void cpu_int_handler(Emulator *emu);
+void dma_tick(Emulator *emu);
 
 #endif

@@ -44,3 +44,15 @@ void ppu_vram_write(Ppu *ppu, uint16_t addr, uint8_t data)
 	assert(addr < VRAM_SIZE);
 	ppu->vram[addr] = data;
 }
+
+void dma_start(Ppu *ppu, uint8_t start)
+{
+	if (!ppu->dma) {
+		ppu->dma = malloc(sizeof(*ppu->dma));
+	}
+	ppu->dma->transferring = 1;
+	ppu->dma->byte = 0;
+	ppu->dma->delay = 2;
+	ppu->dma->value = start;
+}
+

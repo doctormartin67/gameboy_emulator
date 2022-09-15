@@ -5,6 +5,7 @@
 #include "emulator.h"
 #include "ui.h"
 #include "interrupts.h"
+#include "bus.h"
 
 Emulator *emu_init(Cpu *cpu, Cartridge *cart, Timer *timer, Ppu *ppu)
 {
@@ -20,11 +21,19 @@ void emu_kill(Emulator *emu)
 	emu->running = 0;
 }
 
+static unsigned is_cycle(unsigned ticks)
+{
+	return !(ticks % 4);
+}
+
 void emu_ticks(Emulator *emu, unsigned ticks)
 {
 	for (unsigned i = 0; i < ticks; i++) {
 		emu->ticks++;
 		timer_tick(emu->cpu, emu->timer);
+		if (is_cycle(i)) {
+			dma_tick(emu);
+		}
 	}
 }
 
@@ -81,3 +90,21 @@ int emu_main(int argc, char *argv[])
 	}
 	return 0;
 }
+
+void dma_tick(Emulator *emu)
+{
+	Dma *dma = emu->ppu->dma;
+	if (!dma || !dma_transferring(dma)) {
+		return;
+	}
+
+	if (dma->delay) {
+		dma->delay--;
+		return;
+	}
+
+	uint16_t addr = bus_read(emu, (dma->value * 0x100) + dma->byte);
+	ppu_oam_write(emu->ppu, dma->byte++, addr);
+	dma->transferring = dma->byte < 0xa0;
+}
+

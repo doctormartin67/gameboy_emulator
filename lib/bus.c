@@ -36,6 +36,9 @@ uint8_t bus_read(const Emulator *emu, uint16_t addr)
 		printf("Read at address '0x%04x' not supported yet\n", addr);
 		return 0;
 	} else if (addr < 0xfea0) {
+		if (dma_transferring(emu->ppu->dma)) {
+			return 0xff;	
+		}
 		return ppu_oam_read(emu->ppu, addr);
 	} else if (addr < IO_ADDR) {
 		printf("Read at address '0x%04x' not supported yet\n", addr);
@@ -62,6 +65,9 @@ void bus_write8(Emulator *emu, uint16_t addr, uint8_t data)
 	} else if (addr < OAM_ADDR) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
 	} else if (addr < 0xfea0) {
+		if (dma_transferring(emu->ppu->dma)) {
+			return;
+		}
 		ppu_oam_write(emu->ppu, addr, data);
 	} else if (addr < IO_ADDR) {
 		printf("Write at address '0x%04x' not supported yet\n", addr);
