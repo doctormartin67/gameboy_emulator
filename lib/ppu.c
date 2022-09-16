@@ -20,14 +20,18 @@ void ppu_tick(Ppu *ppu)
  */
 uint8_t ppu_oam_read(const Ppu *ppu, uint16_t addr)
 {
-	addr -= OAM_ADDR;
+	if ((unsigned long)(addr - OAM_ADDR) < sizeof(ppu->oam)) {
+		addr -= OAM_ADDR;
+	} 
 	assert(addr < sizeof(ppu->oam));
 	return ((uint8_t *)(ppu->oam))[addr];
 }
 
 void ppu_oam_write(Ppu *ppu, uint16_t addr, uint8_t data)
 {
-	addr -= OAM_ADDR;
+	if ((unsigned long)(addr - OAM_ADDR) < sizeof(ppu->oam)) {
+		addr -= OAM_ADDR;
+	} 
 	assert(addr < sizeof(ppu->oam));
 	((uint8_t *)(ppu->oam))[addr] = data;
 }

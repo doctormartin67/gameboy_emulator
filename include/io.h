@@ -9,6 +9,7 @@
 #define SC_ADDR 0xff02
 #define TIMER_ADDR(a) ((a) < 0xff08 && (a) > 0xff03)
 #define IF_ADDR 0xff0f
+#define LY_ADDR 0xff44
 
 uint8_t io_read(const Emulator *emu, uint16_t addr);
 void io_write(Emulator *emu, uint16_t addr, uint8_t data);

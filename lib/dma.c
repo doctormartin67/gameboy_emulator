@@ -2,5 +2,9 @@
 
 unsigned dma_transferring(const Dma *dma)
 {
-	return dma->transferring;
+	if (dma) {
+		return dma->transferring;
+	} else {
+		return 0;
+	}
 }

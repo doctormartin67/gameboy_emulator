@@ -17,6 +17,12 @@ uint8_t io_read(const Emulator *emu, uint16_t addr)
 		return timer_read(emu->timer, addr);
 	} else if (IF_ADDR == addr) {
 		return cpu_if_reg_read(emu->cpu);
+	} else if (LY_ADDR == addr) {
+		/*
+		 * TODO: HACK for now, this needs improved some time
+		 */
+		static uint8_t ly = 0;
+		return ly++;
 	}
 	printf("Read at address '0x%04x' not supported yet\n", addr);
 	return 0;
