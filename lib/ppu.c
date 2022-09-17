@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <stddef.h>
 #include <assert.h>
+#include <unistd.h>
 #include "ppu.h"
 #include "common.h"
 
@@ -11,15 +13,92 @@ Ppu *ppu_init(void)
 	return ppu;
 }
 
-void ppu_tick(Ppu *ppu)
-{
-	(void)ppu;
+// https://gbdev.io/pandocs/pixel_fifo.html
+static void increment_ly(Cpu *cpu, Lcd *lcd) {
+	lcd->ly++;
+	set_ly_flag(cpu, lcd);
 }
 
-/*
- * the assertions made for oam might not always hold. If they don't, it might
- * be the case that you don't use the offset and thus just use the addr as is.
- */
+static void update_fps(void)
+{
+	static double start_frame_time = 0;
+	double end_frame_time = get_ticks();
+	double frame_time = end_frame_time - start_frame_time;
+
+	if (frame_time < TARGET_FRAME_TIME) {
+		delay(TARGET_FRAME_TIME - frame_time);
+	}
+	start_frame_time = get_ticks();
+}
+
+static void ppu_mode_hblank(Cpu *cpu, Ppu *ppu)
+{
+	if (LINE_TICKS - 1 < ppu->line_ticks) {
+		increment_ly(cpu, ppu->lcd);
+		if (YRES - 1 < ppu->lcd->ly) {
+			set_lcd_mode(ppu->lcd, MODE_VBLANK);
+			cpu_request_interrupt(cpu, INT_VBLANK);
+			if (lcd_stat_is_set(ppu->lcd, STAT_VBLANK)) {
+				cpu_request_interrupt(cpu, INT_LCD_STAT);
+			}
+			ppu->num_frame++;
+			update_fps();
+		} else {
+			set_lcd_mode(ppu->lcd, MODE_OAM);
+		}
+		ppu->line_ticks = 0;
+	}
+}
+
+static void ppu_mode_vblank(Cpu *cpu, Ppu *ppu)
+{
+	if (LINE_TICKS - 1 < ppu->line_ticks) {
+		increment_ly(cpu, ppu->lcd);
+		if (FRAME_LINES - 1 < ppu->lcd->ly) {
+			set_lcd_mode(ppu->lcd, MODE_OAM);
+			ppu->lcd->ly = 0;
+		}
+		ppu->line_ticks = 0;
+	}
+}
+
+// https://gbdev.io/pandocs/pixel_fifo.html
+static void ppu_mode_oam(Ppu *ppu)
+{
+	if (79 < ppu->line_ticks) {
+		set_lcd_mode(ppu->lcd, MODE_DRAW);
+	}
+}
+
+static void ppu_mode_draw(Ppu *ppu)
+{
+	if (79 + 172 < ppu->line_ticks) {
+		set_lcd_mode(ppu->lcd, MODE_HBLANK);
+	}
+}
+
+void ppu_tick(Cpu *cpu, Ppu *ppu)
+{
+	ppu->line_ticks++;
+
+	switch(get_lcd_mode(ppu->lcd)) {
+		case MODE_HBLANK:
+			ppu_mode_hblank(cpu, ppu);
+			break;
+		case MODE_VBLANK:
+			ppu_mode_vblank(cpu, ppu);
+			break;
+		case MODE_OAM:
+			ppu_mode_oam(ppu);
+			break;
+		case MODE_DRAW:
+			ppu_mode_draw(ppu);
+			break;
+		default:
+			assert(0);
+	}
+}
+
 uint8_t ppu_oam_read(const Ppu *ppu, uint16_t addr)
 {
 	if ((unsigned long)(addr - OAM_ADDR) < sizeof(ppu->oam)) {
@@ -77,6 +156,7 @@ void lcd_write(Ppu *ppu, uint16_t addr, uint8_t data)
 	assert(lcd);
 	assert(addr >= LCD_ADDR);
 	uint8_t offset = addr - LCD_ADDR;
+	assert(offset <= offsetof(Lcd, wx));
 	((uint8_t *)lcd)[offset] = data;
 
 	if (DMA_ADDR == addr) {

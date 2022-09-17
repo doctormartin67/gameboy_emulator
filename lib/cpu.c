@@ -6,6 +6,8 @@
 #include "transfer.h"
 #include "common.h"
 
+#define PRINT_STATUS 0
+
 // https://gbdev.io/pandocs/CPU_Registers_and_Flags.html
 
 static unsigned is_8bit_reg(Reg reg)
@@ -1138,6 +1140,7 @@ void next_op(Emulator *emu)
 	emu_ticks(emu, cpu->op.ticks);
 }
 
+#if PRINT_STATUS
 static void print_flags(uint8_t f)
 {
 	printf("F: ");
@@ -1169,11 +1172,14 @@ static void cpu_print(const Emulator *emu)
 			bus_read(emu, cpu->regs.sp + 1));
 	print_regs(cpu->regs);
 }
+#endif
 
 void print_status(Emulator *emu)
 {
+#if PRINT_STATUS
 	printf("%09lx ", emu->ticks);
 	cpu_print(emu);
+#endif
 	update_transfer_msg(emu);
 	print_transfer_msg();
 }

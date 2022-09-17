@@ -43,6 +43,16 @@ void ui_init(void)
 			COLOR_BLACK, COLOR_BLACK);
 }
 
+void delay(uint32_t ms)
+{
+	SDL_Delay(ms);
+}
+
+uint32_t get_ticks(void)
+{
+	return SDL_GetTicks();
+}
+
 /*
  * annoyingly, I could only get this function to work where red and blue are
  * reversed, so I created these macros to enfasize that fact.

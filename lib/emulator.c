@@ -31,6 +31,7 @@ void emu_ticks(Emulator *emu, unsigned ticks)
 	for (unsigned i = 0; i < ticks; i++) {
 		emu->ticks++;
 		timer_tick(emu->cpu, emu->timer);
+		ppu_tick(emu->cpu, emu->ppu);
 		if (is_cycle(i)) {
 			dma_tick(emu);
 		}
@@ -84,9 +85,13 @@ int emu_main(int argc, char *argv[])
 		return 1;
 	}
 
+	uint32_t frame = 0;
 	while(emu->running) {
 		ui_handle_events(emu);
-		ui_update(emu);
+		if (frame != emu->ppu->num_frame) {
+			ui_update(emu);
+		}
+		frame = emu->ppu->num_frame;
 	}
 	return 0;
 }

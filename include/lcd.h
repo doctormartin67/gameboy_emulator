@@ -2,6 +2,7 @@
 #define LCD_H
 
 #include <stdint.h>
+#include "cpu.h"
 
 // https://gbdev.io/pandocs/LCDC.html
 // --
@@ -61,5 +62,9 @@ typedef enum {
 
 Lcd *lcd_init(void);
 uint8_t lcd_read(const Lcd *lcd, uint16_t addr);
+LcdMode get_lcd_mode(const Lcd *lcd);
+void set_lcd_mode(Lcd *lcd, LcdMode mode);
+void set_ly_flag(Cpu *cpu, Lcd *lcd);
+unsigned lcd_stat_is_set(const Lcd *lcd, StatInt stat);
 
 #endif

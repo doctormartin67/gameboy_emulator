@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stddef.h>
 #include <assert.h>
 #include "lcd.h"
 #include "common.h"
@@ -20,6 +21,7 @@ Lcd *lcd_init(void)
 		lcd->sprite1_colors[i] = default_colors[i];
 		lcd->sprite2_colors[i] = default_colors[i];
 	}
+	set_lcd_mode(lcd, MODE_OAM);
 	return lcd;
 }
 
@@ -27,6 +29,7 @@ uint8_t lcd_read(const Lcd *lcd, uint16_t addr)
 {
 	assert(addr >= LCD_ADDR);
 	uint8_t offset = addr - LCD_ADDR;
+	assert(offset <= offsetof(Lcd, wx));
 	return ((uint8_t *)lcd)[offset];
 }
 
@@ -52,33 +55,41 @@ static uint16_t get_lcd_control(const Lcd *lcd, LcdControl ctrl)
 	}
 }
 
+#endif
 // https://gbdev.io/pandocs/STAT.html
 
-static LcdMode get_lcd_mode(const Lcd *lcd)
+LcdMode get_lcd_mode(const Lcd *lcd)
 {
 	return lcd->stat & 0x3;
 }
 
-static void set_lcd_mode(Lcd *lcd, LcdMode mode)
+void set_lcd_mode(Lcd *lcd, LcdMode mode)
 {
 	lcd->stat &= ~0x3;
 	lcd->stat |= mode;
 }
+#if 0
 
 static unsigned ly_flag_is_set(const Lcd *lcd)
 {
 	return BIT(lcd->stat, 2);
 }
+#endif
 
-static void set_ly_flag(Lcd *lcd)
-{
-	if (lcd->ly == lcd->lyc) {
-		SET_BIT(lcd->stat, 2, 1);
-	}
-}
-
-static unsigned lcd_stat_is_set(const Lcd *lcd, StatInt stat)
+unsigned lcd_stat_is_set(const Lcd *lcd, StatInt stat)
 {
 	return BIT(lcd->stat, stat);
 }
-#endif
+
+void set_ly_flag(Cpu *cpu, Lcd *lcd)
+{
+	if (lcd->ly == lcd->lyc) {
+		SET_BIT(lcd->stat, 2, 1);
+		if (lcd_stat_is_set(lcd, STAT_LY)) {
+			cpu_request_interrupt(cpu, INT_LCD_STAT);
+		}
+	} else {
+		SET_BIT(lcd->stat, 2, 0);
+	}
+}
+
