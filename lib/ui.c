@@ -8,6 +8,8 @@ static SDL_Renderer *renderer;
 static SDL_Texture *texture;
 static SDL_Surface *surface;
 
+uint32_t default_colors[4];
+
 void ui_init(void)
 {
 	if (SDL_Init(SDL_INIT_EVERYTHING)) {
@@ -30,6 +32,15 @@ void ui_init(void)
 	surface = SDL_CreateRGBSurface(0, WINDOW_WIDTH, WINDOW_HEIGHT, 32,
 			RMASK, GMASK, BMASK, AMASK);
 	assert(surface);
+
+	default_colors[0] = SDL_MapRGB(surface->format, COLOR_WHITE,
+			COLOR_WHITE, COLOR_WHITE);
+	default_colors[1] = SDL_MapRGB(surface->format, COLOR_LIGHT_GREY,
+			COLOR_LIGHT_GREY, COLOR_LIGHT_GREY);
+	default_colors[2] = SDL_MapRGB(surface->format, COLOR_DARK_GREY,
+			COLOR_DARK_GREY, COLOR_DARK_GREY);
+	default_colors[3] = SDL_MapRGB(surface->format, COLOR_BLACK,
+			COLOR_BLACK, COLOR_BLACK);
 }
 
 /*
@@ -77,8 +88,6 @@ static uint16_t read_pixel_row(const Emulator *emu, unsigned row,
 	return (0x0000 | byte1) | ((0x0000 | byte2) << 8);
 }
 
-static uint8_t colors[] = {0xff, 0xa0, 0x50, 0x00};
-
 static void update_pixel(unsigned tile_x, unsigned tile_y, unsigned pixel_row,
 		unsigned pixel_col, uint8_t color)
 {
@@ -87,8 +96,7 @@ static void update_pixel(unsigned tile_x, unsigned tile_y, unsigned pixel_row,
 	rc.y = (tile_y * PIXELS + pixel_row) * SCALE;
 	rc.w = SCALE;
 	rc.h = SCALE;
-	uint32_t shade = SDL_MapRGB(surface->format, colors[color],
-			colors[color], colors[color]);
+	uint32_t shade = default_colors[color]; 
 	assert(!SDL_FillRect(surface, &rc, shade));
 }
 

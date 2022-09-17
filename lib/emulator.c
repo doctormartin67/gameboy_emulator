@@ -68,12 +68,12 @@ int emu_main(int argc, char *argv[])
 		return 1;
 	}
 
+	ui_init();
 	Cartridge *cart = cart_init(argv[1]);
 	Cpu *cpu = cpu_init();
 	Timer *timer = timer_init();
 	Ppu *ppu = ppu_init();
 	Emulator *emu = emu_init(cpu, cart, timer, ppu);
-	ui_init();
 
 	cart_print(cart);
 

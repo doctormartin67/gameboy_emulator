@@ -2,6 +2,7 @@
 #include <assert.h>
 #include "io.h"
 #include "cpu.h"
+#include "lcd.h"
 
 // https://gbdev.io/pandocs/Serial_Data_Transfer_(Link_Cable).html
 
@@ -17,12 +18,8 @@ uint8_t io_read(const Emulator *emu, uint16_t addr)
 		return timer_read(emu->timer, addr);
 	} else if (IF_ADDR == addr) {
 		return cpu_if_reg_read(emu->cpu);
-	} else if (LY_ADDR == addr) {
-		/*
-		 * TODO: HACK for now, this needs improved some time
-		 */
-		static uint8_t ly = 0;
-		return ly++;
+	} else if (IS_LCD_ADDR(addr)) {
+		return lcd_read(emu->ppu->lcd, addr);
 	}
 	printf("Read at address '0x%04x' not supported yet\n", addr);
 	return 0;
@@ -42,8 +39,9 @@ void io_write(Emulator *emu, uint16_t addr, uint8_t data)
 	} else if (IF_ADDR == addr) {
 		emu->cpu->if_reg = data;
 		return;
-	} else if (DMA_ADDR == addr) {
-		dma_start(emu->ppu, data);
+	} else if (IS_LCD_ADDR(addr)) {
+		lcd_write(emu->ppu, addr, data);
+		return;
 	}
 	printf("Write at address '0x%04x' not supported yet\n", addr);
 }

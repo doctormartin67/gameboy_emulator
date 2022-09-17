@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "dma.h"
+#include "lcd.h"
 
 // https://gbdev.io/pandocs/OAM.html
 
@@ -22,6 +23,7 @@ typedef struct Ppu {
 	struct oam oam[NUM_SPRITES];
 	uint8_t vram[VRAM_SIZE];
 	Dma *dma;
+	Lcd *lcd;
 } Ppu;
 
 _Static_assert(sizeof(struct oam) * NUM_SPRITES == 160,
@@ -36,5 +38,6 @@ void ppu_oam_write(Ppu *ppu, uint16_t addr, uint8_t data);
 uint8_t ppu_vram_read(const Ppu *ppu, uint16_t addr);
 void ppu_vram_write(Ppu *ppu, uint16_t addr, uint8_t data);
 void dma_start(Ppu *ppu, uint8_t start);
+void lcd_write(Ppu *ppu, uint16_t addr, uint8_t data);
 
 #endif

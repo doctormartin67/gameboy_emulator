@@ -10,4 +10,11 @@
 #define LO_SHIFT(a) (uint16_t)a >> 8
 #define HI_SHIFT(a) (uint16_t)a << 8
 
+#define COLOR_WHITE 0xff
+#define COLOR_LIGHT_GREY 0xa0
+#define COLOR_DARK_GREY 0x50
+#define COLOR_BLACK 0x00
+
+extern uint32_t default_colors[4];
+
 #endif

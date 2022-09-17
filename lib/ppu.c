@@ -1,11 +1,13 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "ppu.h"
+#include "common.h"
 
 Ppu *ppu_init(void)
 {
 	Ppu *ppu = malloc(sizeof(*ppu));
 	*ppu = (Ppu){0};
+	ppu->lcd = lcd_init();
 	return ppu;
 }
 
@@ -60,3 +62,31 @@ void dma_start(Ppu *ppu, uint8_t start)
 	ppu->dma->value = start;
 }
 
+// https://gbdev.io/pandocs/Palettes.html
+
+static void update_palettes(uint32_t *pal, uint8_t color)
+{
+	for (size_t i = 0; i < 4; i++) {
+		pal[i] = default_colors[(color >> (2 * i)) & 0x3];
+	}
+}
+
+void lcd_write(Ppu *ppu, uint16_t addr, uint8_t data)
+{
+	Lcd *lcd = ppu->lcd;
+	assert(lcd);
+	assert(addr >= LCD_ADDR);
+	uint8_t offset = addr - LCD_ADDR;
+	((uint8_t *)lcd)[offset] = data;
+
+	if (DMA_ADDR == addr) {
+		dma_start(ppu, data);
+	} else if (BGP_ADDR == addr) {
+		update_palettes(lcd->bg_colors, data);
+	} else if (OBP1_ADDR == addr) {
+		// 0xfc is used to mask out bottom 2 bits
+		update_palettes(lcd->sprite1_colors, data & 0xfc);
+	} else if (OBP2_ADDR == addr) {
+		update_palettes(lcd->sprite2_colors, data & 0xfc);
+	}
+}
