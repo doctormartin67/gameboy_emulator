@@ -146,6 +146,7 @@ Cartridge *cart_load(const char *file_name)
 	cart->header->title[title_size - 1] = 0;
 	
 	cart->file_name = file_name;
+	fclose(fp);
 	return cart;
 }
 
@@ -203,4 +204,10 @@ Cartridge *cart_init(const char *file_name)
 	Cartridge *cart = cart_load(file_name);
 	assert(cart_check(cart));
 	return cart;
+}
+
+void free_cart(Cartridge *cart)
+{
+	free(cart->rom_data);
+	free(cart);
 }

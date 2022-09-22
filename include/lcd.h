@@ -50,7 +50,7 @@ typedef enum {
 	MODE_HBLANK,
 	MODE_VBLANK,
 	MODE_OAM,
-	MODE_DRAW,
+	MODE_TRANSFER,
 } LcdMode;
 
 typedef enum {

@@ -40,6 +40,7 @@ _Static_assert(sizeof(struct oam) * NUM_SPRITES == 160,
 
 
 Ppu *ppu_init(void);
+void free_ppu(Ppu *ppu);
 void ppu_tick(Cpu *cpu, Ppu *ppu);
 
 uint8_t ppu_oam_read(const Ppu *ppu, uint16_t addr);

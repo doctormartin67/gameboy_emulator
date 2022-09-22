@@ -1,0 +1,63 @@
+{ 
+	<insert_a_suppression_name_here> 
+	Memcheck:Leak 
+	... 
+	obj:/*lib*/libX11* 
+	... 
+} 
+
+{ 
+	<insert_a_suppression_name_here> 
+	Memcheck:Leak 
+	... 
+	obj:/*lib*/libSDL2* 
+	... 
+} 
+
+{ 
+	<insert_a_suppression_name_here> 
+	Memcheck:Leak 
+	... 
+	obj:/*lib*/libLLVM* 
+	... 
+} 
+
+{ 
+	<insert_a_suppression_name_here> 
+	Memcheck:Leak 
+	... 
+	obj:/*lib*/libpulsecommon* 
+	... 
+} 
+
+{ 
+	<insert_a_suppression_name_here> 
+	Memcheck:Leak 
+	... 
+	obj:/*lib*/libdbus* 
+	... 
+} 
+
+{ 
+	<insert_a_suppression_name_here> 
+	Memcheck:Leak 
+	... 
+	obj:/*lib*/dri* 
+	... 
+} 
+
+{ 
+	<insert_a_suppression_name_here> 
+	Memcheck:Leak 
+	... 
+	fun:_dl_open
+	... 
+} 
+
+{ 
+	<insert_a_suppression_name_here> 
+	Memcheck:Addr8 
+	... 
+	fun:dl_open_worker
+	... 
+} 

@@ -20,6 +20,11 @@ Timer *timer_init(void)
 	return t;
 }
 
+void free_timer(Timer *timer)
+{
+	free(timer);
+}
+
 void timer_tick(Cpu *cpu, Timer *t)
 {
 	unsigned update_tima = 0;

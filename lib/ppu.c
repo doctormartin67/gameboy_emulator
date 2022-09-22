@@ -7,10 +7,15 @@
 
 Ppu *ppu_init(void)
 {
-	Ppu *ppu = malloc(sizeof(*ppu));
-	*ppu = (Ppu){0};
+	Ppu *ppu = calloc(1, sizeof(*ppu));
 	ppu->lcd = lcd_init();
 	return ppu;
+}
+
+void free_ppu(Ppu *ppu)
+{
+	free(ppu->lcd);
+	free(ppu);
 }
 
 // https://gbdev.io/pandocs/pixel_fifo.html
@@ -66,11 +71,11 @@ static void ppu_mode_vblank(Cpu *cpu, Ppu *ppu)
 static void ppu_mode_oam(Ppu *ppu)
 {
 	if (79 < ppu->line_ticks) {
-		set_lcd_mode(ppu->lcd, MODE_DRAW);
+		set_lcd_mode(ppu->lcd, MODE_TRANSFER);
 	}
 }
 
-static void ppu_mode_draw(Ppu *ppu)
+static void ppu_mode_transfer(Ppu *ppu)
 {
 	if (79 + 172 < ppu->line_ticks) {
 		set_lcd_mode(ppu->lcd, MODE_HBLANK);
@@ -91,8 +96,8 @@ void ppu_tick(Cpu *cpu, Ppu *ppu)
 		case MODE_OAM:
 			ppu_mode_oam(ppu);
 			break;
-		case MODE_DRAW:
-			ppu_mode_draw(ppu);
+		case MODE_TRANSFER:
+			ppu_mode_transfer(ppu);
 			break;
 		default:
 			assert(0);

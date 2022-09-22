@@ -21,6 +21,7 @@ typedef struct Timer {
 // https://gbdev.io/pandocs/Power_Up_Sequence.html?highlight=div#hardware-registers
 
 Timer *timer_init(void);
+void free_timer(Timer *timer);
 void timer_tick(Cpu *cpu, Timer *t);
 uint8_t timer_read(const Timer *t, uint16_t addr);
 void timer_write(Timer *t, uint16_t addr, uint8_t data);

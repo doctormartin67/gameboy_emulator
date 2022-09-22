@@ -44,5 +44,6 @@ void cart_print(const Cartridge *cart);
 uint8_t cart_read(const Cartridge *cart, uint16_t addr);
 void cart_write(Cartridge *cart, uint16_t addr, uint8_t data);
 Cartridge *cart_init(const char *file_name);
+void free_cart(Cartridge *cart);
 
 #endif

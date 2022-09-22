@@ -161,13 +161,24 @@ void ui_update(const Emulator *emu)
 	ui_update_window(emu);
 }
 
+static void ui_kill(void)
+{
+	SDL_DestroyTexture(texture);
+	SDL_DestroyRenderer(renderer);
+	SDL_FreeSurface(surface);
+	SDL_DestroyWindow(window);
+
+	SDL_Quit();
+}
+
 void ui_handle_events(Emulator *emu)
 {
 	SDL_Event e;
 	while (SDL_PollEvent(&e) > 0) {
 		if (SDL_WINDOWEVENT == e.type
 				&& SDL_WINDOWEVENT_CLOSE == e.window.event) {
-			emu_kill(emu);
+			emu->running = 0;
+			ui_kill();
 		}
 	}
 }

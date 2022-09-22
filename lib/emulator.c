@@ -18,7 +18,11 @@ Emulator *emu_init(Cpu *cpu, Cartridge *cart, Timer *timer, Ppu *ppu)
 
 void emu_kill(Emulator *emu)
 {
-	emu->running = 0;
+	free_cpu(emu->cpu);
+	free_cart(emu->cart);
+	free_timer(emu->timer);
+	free_ppu(emu->ppu);
+	free(emu);
 }
 
 static unsigned is_cycle(unsigned ticks)
@@ -93,6 +97,8 @@ int emu_main(int argc, char *argv[])
 		}
 		frame = emu->ppu->num_frame;
 	}
+	pthread_join(cpu_thread, 0);
+	emu_kill(emu);
 	return 0;
 }
 

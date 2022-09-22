@@ -1229,3 +1229,8 @@ Cpu *cpu_init(void)
 	};
 	return cpu;
 }
+
+void free_cpu(Cpu *cpu)
+{
+	free(cpu);
+}
