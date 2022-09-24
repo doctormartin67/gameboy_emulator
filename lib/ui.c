@@ -82,6 +82,7 @@ enum {
 	TILE_SIZE = 16,
 };
 
+#if 0
 static uint16_t read_pixel_row(const Emulator *emu, unsigned row,
 		unsigned num_tile)
 {
@@ -134,7 +135,7 @@ static void update_tile(const Emulator *emu, unsigned tile_x, unsigned tile_y,
 	}
 }
 
-static void update_tiles(const Emulator *emu)
+static void update_dbg_tiles(const Emulator *emu)
 {
 	unsigned num_tile = 0;
 	for (unsigned y = 0; y < COLS; y++) {
@@ -144,9 +145,29 @@ static void update_tiles(const Emulator *emu)
 	}
 }
 
+#endif
+
+static void update_tiles(const Emulator *emu)
+{
+	SDL_Rect rc = (SDL_Rect){0};
+	uint32_t *lcd_buf = emu->ppu->lcd_buf;
+
+	for (unsigned y = 0; y < YRES; y++) {
+		for (unsigned x = 0; x < XRES; x++) {
+			rc.x = x * SCALE;
+			rc.y = y * SCALE;
+			rc.w = SCALE;
+			rc.h = SCALE;
+
+			SDL_FillRect(surface, &rc, lcd_buf[x + y * XRES]);
+		}
+	}
+}
+
 static void ui_update_window(const Emulator *emu)
 {
 	fill_surface();
+	//update_dbg_tiles(emu);
 	update_tiles(emu);
 
 	assert(!SDL_UpdateTexture(texture, 0, surface->pixels,

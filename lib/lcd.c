@@ -33,9 +33,7 @@ uint8_t lcd_read(const Lcd *lcd, uint16_t addr)
 	return ((uint8_t *)lcd)[offset];
 }
 
-#if 0
-
-static uint16_t get_lcd_control(const Lcd *lcd, LcdControl ctrl)
+uint16_t get_lcd_control(const Lcd *lcd, LcdControl ctrl)
 {
 	assert(ctrl < 8);
 	unsigned status = BIT(lcd->lcdc, ctrl);
@@ -45,9 +43,9 @@ static uint16_t get_lcd_control(const Lcd *lcd, LcdControl ctrl)
 			return status;	
 		case CTRL_OBJ_SIZE:
 			return status ? 16 : 8;
-		case CTRL_BG_AREA:
+		case CTRL_BGW_MAP_AREA: case CTRL_W_MAP_AREA:
 			return status ? 0x9c00 : 0x9800;
-		case CTRL_BGW_AREA: case CTRL_W_AREA:
+		case CTRL_BGW_DATA_AREA:
 			return status ? 0x8000 : 0x8800;
 		default:
 			assert(0);
@@ -55,7 +53,6 @@ static uint16_t get_lcd_control(const Lcd *lcd, LcdControl ctrl)
 	}
 }
 
-#endif
 // https://gbdev.io/pandocs/STAT.html
 
 LcdMode get_lcd_mode(const Lcd *lcd)

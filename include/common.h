@@ -15,6 +15,8 @@
 #define COLOR_DARK_GREY 0x50
 #define COLOR_BLACK 0x00
 
+#define PIXELS 8
+
 extern uint32_t default_colors[4];
 void delay(uint32_t ms);
 uint32_t get_ticks(void);

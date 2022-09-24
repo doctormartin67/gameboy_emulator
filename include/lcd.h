@@ -39,10 +39,10 @@ typedef enum {
 	CTRL_BGW_ENABLE,
 	CTRL_OBJ_ENABLE,
 	CTRL_OBJ_SIZE,
-	CTRL_BG_AREA,
-	CTRL_BGW_AREA,
+	CTRL_BGW_MAP_AREA,
+	CTRL_BGW_DATA_AREA,
 	CTRL_WINDOW_ENABLE,
-	CTRL_W_AREA,
+	CTRL_W_MAP_AREA,
 	CTRL_LCD_PPU_ENABLE,
 } LcdControl;
 
@@ -62,6 +62,7 @@ typedef enum {
 
 Lcd *lcd_init(void);
 uint8_t lcd_read(const Lcd *lcd, uint16_t addr);
+uint16_t get_lcd_control(const Lcd *lcd, LcdControl ctrl);
 LcdMode get_lcd_mode(const Lcd *lcd);
 void set_lcd_mode(Lcd *lcd, LcdMode mode);
 void set_ly_flag(Cpu *cpu, Lcd *lcd);

@@ -35,7 +35,7 @@ void emu_ticks(Emulator *emu, unsigned ticks)
 	for (unsigned i = 0; i < ticks; i++) {
 		emu->ticks++;
 		timer_tick(emu->cpu, emu->timer);
-		ppu_tick(emu->cpu, emu->ppu);
+		ppu_tick(emu);
 		if (is_cycle(i)) {
 			dma_tick(emu);
 		}
