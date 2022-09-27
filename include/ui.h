@@ -6,10 +6,10 @@
 
 // https://gbdev.io/pandocs/Tile_Data.html
 
-#define SCALE 4
+#define SCALE 3
 
-#define WINDOW_WIDTH 16 * PIXELS * SCALE
-#define WINDOW_HEIGHT 24 * PIXELS * SCALE
+#define WINDOW_WIDTH 32 * PIXELS * SCALE
+#define WINDOW_HEIGHT 32 * PIXELS * SCALE
 #define WINDOW_FLAGS 0 // no flags at the moment
 
 #define RENDERER_FLAGS 0 // no flags at the moment

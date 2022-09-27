@@ -40,41 +40,6 @@ static void update_fps(void)
 	start_frame_time = get_ticks();
 }
 
-static void ppu_mode_hblank(Cpu *cpu, Ppu *ppu)
-{
-	if (LINE_TICKS > ppu->line_ticks) {
-		return;
-	}
-	increment_ly(cpu, ppu->lcd);
-	if (YRES > ppu->lcd->ly) {
-		set_lcd_mode(ppu->lcd, MODE_OAM);
-	} else {
-		set_lcd_mode(ppu->lcd, MODE_VBLANK);
-		cpu_request_interrupt(cpu, INT_VBLANK);
-		if (lcd_stat_is_set(ppu->lcd, STAT_VBLANK)) {
-			cpu_request_interrupt(cpu, INT_LCD_STAT);
-		}
-		ppu->num_frame++;
-		update_fps();
-	}
-	ppu->line_ticks = 0;
-}
-
-static void ppu_mode_vblank(Cpu *cpu, Ppu *ppu)
-{
-	if (LINE_TICKS > ppu->line_ticks) {
-		return;
-	}
-	increment_ly(cpu, ppu->lcd);
-	if (FRAME_LINES > ppu->lcd->ly) {
-		ppu->line_ticks = 0;
-	} else {
-		set_lcd_mode(ppu->lcd, MODE_OAM);
-		ppu->lcd->ly = 0;
-		ppu->line_ticks = 0;
-	}
-}
-
 static void ppu_fsm_init(FetcherStateMachine *fsm)
 {
 	Fetcher *f = fsm->fetcher;
@@ -85,11 +50,14 @@ static void ppu_fsm_init(FetcherStateMachine *fsm)
 // https://gbdev.io/pandocs/pixel_fifo.html
 static void ppu_mode_oam(Ppu *ppu)
 {
-	if (OAM_TICKS > ppu->line_ticks) {
-		return;
+	if (OAM_TICKS <= ppu->line_ticks) {
+		set_lcd_mode(ppu->lcd, MODE_TRANSFER);
+		ppu_fsm_init(ppu->fsm);
 	}
-	set_lcd_mode(ppu->lcd, MODE_TRANSFER);
-	ppu_fsm_init(ppu->fsm);
+
+	if (1 == ppu->line_ticks) {
+		// read OAM on the first tick
+	}
 }
 
 static void fetch_tile_map(Emulator *emu)
@@ -97,6 +65,8 @@ static void fetch_tile_map(Emulator *emu)
 	Lcd *lcd = emu->ppu->lcd;
 	FetcherStateMachine *fsm = emu->ppu->fsm;
 	if (!get_lcd_control(lcd, CTRL_BGW_ENABLE)) {
+		fsm->state = FFS_DATA0;
+		fsm->x_fetched += PIXELS;
 		return;
 	}
 	uint16_t addr = get_lcd_control(lcd, CTRL_BGW_MAP_AREA) + fsm->tile_id;
@@ -117,6 +87,8 @@ static void fetch_tile_data(Emulator *emu, FifoFetcherState state)
 		+ fsm->tile_map * 16 // each tile takes 16 bytes
 		+ fsm->line_byte;
 
+	assert(addr < 0xa000);
+
 	if (FFS_DATA0 == state) {
 		fsm->tile_data0 = bus_read(emu, addr);
 		fsm->state = FFS_DATA1;
@@ -132,6 +104,7 @@ static unsigned push_tile_data(Ppu *ppu)
 	Lcd *lcd = ppu->lcd;
 	FetcherStateMachine *fsm = ppu->fsm;
 	if (fsm->fetcher->size > PIXELS) {
+		// fifo is full
 		return 0;
 	}
 
@@ -143,8 +116,8 @@ static unsigned push_tile_data(Ppu *ppu)
 	uint8_t hi = 0;
 	uint8_t lo = 0;
 	for (unsigned bit = 0; bit < PIXELS; bit++) {
-		hi = (BIT(fsm->tile_data0, PIXELS - 1 - bit) ? 1 : 0) << 1;
-		lo = (BIT(fsm->tile_data1, PIXELS - 1 - bit) ? 1 : 0);
+		hi = (BIT(fsm->tile_data1, PIXELS - 1 - bit) ? 1 : 0) << 1;
+		lo = (BIT(fsm->tile_data0, PIXELS - 1 - bit) ? 1 : 0);
 		fetcher_push(fsm->fetcher, lcd->bg_colors[hi | lo]);
 	}
 
@@ -189,12 +162,13 @@ static void push_pixel_data(Ppu *ppu)
 	uint32_t data = fetcher_pop(fsm->fetcher);	
 
 	// scroll pixels are just ignored
-	if (fsm->x >= lcd->scx % PIXELS) {
-		size_t addr = fsm->x_pushed + lcd->ly * XRES;
-		ppu->lcd_buf[addr] = data;
-		fsm->x_pushed++;
+	if (fsm->x++ < lcd->scx % PIXELS) {
+		return;
 	}
-	fsm->x++;
+	size_t addr = fsm->x_pushed + lcd->ly * XRES;
+	assert(addr < YRES * XRES);
+	ppu->lcd_buf[addr] = data;
+	fsm->x_pushed++;
 }
 
 static void process_pixel_pipeline(Emulator *emu)
@@ -202,10 +176,10 @@ static void process_pixel_pipeline(Emulator *emu)
 	Ppu *ppu = emu->ppu;
 	Lcd *lcd = ppu->lcd;
 	FetcherStateMachine *fsm = ppu->fsm;
+	uint8_t map_x = (fsm->x_fetched + lcd->scx) / PIXELS;
+	uint8_t map_y = (lcd->ly + lcd->scy) / PIXELS;
 	// 32 because the VRAM has 32x32 tile maps
-	uint16_t map_x = (fsm->x_fetched + lcd->scx) / PIXELS;
-	uint16_t map_y = (lcd->ly + lcd->scy) / PIXELS * 32;
-	fsm->tile_id = map_x + map_y;
+	fsm->tile_id = map_x + map_y * 32;
 	// 2 bytes per line, so this will have a value between 0-15
 	fsm->line_byte = ((lcd->ly + lcd->scy) % PIXELS) * 2;
 
@@ -235,6 +209,41 @@ static void ppu_mode_transfer(Emulator *emu)
 	}
 }
 
+static void ppu_mode_hblank(Cpu *cpu, Ppu *ppu)
+{
+	if (LINE_TICKS > ppu->line_ticks) {
+		return;
+	}
+	increment_ly(cpu, ppu->lcd);
+	if (YRES > ppu->lcd->ly) {
+		set_lcd_mode(ppu->lcd, MODE_OAM);
+	} else {
+		set_lcd_mode(ppu->lcd, MODE_VBLANK);
+		cpu_request_interrupt(cpu, INT_VBLANK);
+		if (lcd_stat_is_set(ppu->lcd, STAT_VBLANK)) {
+			cpu_request_interrupt(cpu, INT_LCD_STAT);
+		}
+		ppu->num_frame++;
+		update_fps();
+	}
+	ppu->line_ticks = 0;
+}
+
+static void ppu_mode_vblank(Cpu *cpu, Ppu *ppu)
+{
+	if (LINE_TICKS > ppu->line_ticks) {
+		return;
+	}
+	increment_ly(cpu, ppu->lcd);
+	if (FRAME_LINES > ppu->lcd->ly) {
+		ppu->line_ticks = 0;
+	} else {
+		set_lcd_mode(ppu->lcd, MODE_OAM);
+		ppu->lcd->ly = 0;
+		ppu->line_ticks = 0;
+	}
+}
+
 void ppu_tick(Emulator *emu)
 {
 	Cpu *cpu = emu->cpu;
@@ -242,17 +251,17 @@ void ppu_tick(Emulator *emu)
 	ppu->line_ticks++;
 
 	switch(get_lcd_mode(ppu->lcd)) {
-		case MODE_HBLANK:
-			ppu_mode_hblank(cpu, ppu);
-			break;
-		case MODE_VBLANK:
-			ppu_mode_vblank(cpu, ppu);
-			break;
 		case MODE_OAM:
 			ppu_mode_oam(ppu);
 			break;
 		case MODE_TRANSFER:
 			ppu_mode_transfer(emu);
+			break;
+		case MODE_HBLANK:
+			ppu_mode_hblank(cpu, ppu);
+			break;
+		case MODE_VBLANK:
+			ppu_mode_vblank(cpu, ppu);
 			break;
 		default:
 			assert(0);

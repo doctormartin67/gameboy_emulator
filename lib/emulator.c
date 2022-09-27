@@ -25,20 +25,20 @@ void emu_kill(Emulator *emu)
 	free(emu);
 }
 
-static unsigned is_cycle(unsigned ticks)
-{
-	return !(ticks % 4);
-}
+enum {
+	TICKS_PER_CYCLE = 4,
+};
 
 void emu_ticks(Emulator *emu, unsigned ticks)
 {
-	for (unsigned i = 0; i < ticks; i++) {
-		emu->ticks++;
-		timer_tick(emu->cpu, emu->timer);
-		ppu_tick(emu);
-		if (is_cycle(i)) {
-			dma_tick(emu);
+	unsigned cycles = ticks / TICKS_PER_CYCLE;
+	for (unsigned i = 0; i < cycles; i++) {
+		for (unsigned j = 0; j < TICKS_PER_CYCLE; j++) {
+			emu->ticks++;
+			timer_tick(emu->cpu, emu->timer);
+			ppu_tick(emu);
 		}
+		dma_tick(emu);
 	}
 }
 
@@ -52,7 +52,7 @@ void *cpu_run(void *p)
 			print_status(emu);
 			next_op(emu);
 		} else {
-			emu_ticks(emu, 4);
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			/* 
 			 * TODO: understand the below code, why should this
 			 * set it to false again?

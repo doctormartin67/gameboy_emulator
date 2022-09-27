@@ -39,6 +39,8 @@ typedef struct Ppu {
 	Dma *dma;
 	Lcd *lcd;
 	FetcherStateMachine *fsm;
+	struct oam sprites[10];
+	size_t num_sprites; // 0 to 10 sprites per line
 } Ppu;
 
 _Static_assert(sizeof(struct oam) * NUM_SPRITES == 160,

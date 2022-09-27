@@ -40,7 +40,7 @@ uint16_t get_lcd_control(const Lcd *lcd, LcdControl ctrl)
 	switch (ctrl) {
 		case CTRL_BGW_ENABLE: case CTRL_OBJ_ENABLE:
 		case CTRL_WINDOW_ENABLE: case CTRL_LCD_PPU_ENABLE:
-			return status;	
+			return status;
 		case CTRL_OBJ_SIZE:
 			return status ? 16 : 8;
 		case CTRL_BGW_MAP_AREA: case CTRL_W_MAP_AREA:
