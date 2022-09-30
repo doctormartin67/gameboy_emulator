@@ -9,6 +9,7 @@
 // https://gbdev.io/pandocs/OAM.html
 
 #define NUM_SPRITES 40
+#define MAX_SPRITES_PER_LINE 10
 #define VRAM_SIZE 0x2000
 #define OAM_ADDR 0xfe00
 #define VRAM_ADDR 0x8000
@@ -22,6 +23,13 @@
 #define OAM_TICKS 80
 
 #define TARGET_FRAME_TIME 1000.0 / 60.0 // 60 FPS
+
+enum {
+	FLAG_PN = 4,
+	FLAG_X_FLIP,
+	FLAG_Y_FLIP,
+	FLAG_BGP,
+};
 
 struct oam {
 	uint8_t y;
@@ -39,8 +47,10 @@ typedef struct Ppu {
 	Dma *dma;
 	Lcd *lcd;
 	FetcherStateMachine *fsm;
-	struct oam sprites[10];
+	struct oam sprites[MAX_SPRITES_PER_LINE];
+	struct oam pixel_sprites[MAX_SPRITES_PER_PIXEL];
 	size_t num_sprites; // 0 to 10 sprites per line
+	size_t num_pixel_sprites; // sprites in one pixel area (0-8 pixels)
 } Ppu;
 
 _Static_assert(sizeof(struct oam) * NUM_SPRITES == 160,

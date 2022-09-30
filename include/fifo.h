@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define MAX_SPRITES_PER_PIXEL 3
+
 // https://blog.tigris.fr/2019/09/15/writing-an-emulator-the-first-pixel/
 /*
    If we don’t count sprites, which are a special case, the Game Boy can handle
@@ -58,11 +60,13 @@ typedef struct FetcherStateMachine {
 	uint8_t x; // current x coordinate (0 <= x < 160)
 	uint8_t x_fetched; // amount of pixels fetched from the VRAM on a line
 	uint8_t x_pushed; // amount of x pushed on current line (0 <= x < 160)
+	uint8_t x_fifo_pixels; // amount of pixels in fifo for current line
 	uint8_t line_byte; // each tile has 8 lines, (2 bytes per line)
 	uint16_t tile_id; // VRAM contains tile maps that use id's to fetch
-	uint8_t tile_map;
-	uint8_t tile_data0;
-	uint8_t tile_data1;
+	uint8_t bgw_tile_map;
+	uint8_t bgw_tile_data[2];
+	// the tile map for sprites is stored in oam
+	uint8_t oam_tile_data[MAX_SPRITES_PER_PIXEL * 2];
 } FetcherStateMachine;
 
 FetcherStateMachine *fsm_init(void);

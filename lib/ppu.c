@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <stddef.h>
 #include <assert.h>
 #include <unistd.h>
@@ -47,6 +48,44 @@ static void ppu_fsm_init(FetcherStateMachine *fsm)
 	fsm->fetcher = f;
 }
 
+static void sprites_reset(Ppu *ppu)
+{
+	memset(ppu->sprites, 0, sizeof(ppu->sprites));
+	ppu->num_sprites = 0;
+}
+
+static int sprites_sort(const void *sprite1, const void *sprite2)
+{
+	const struct oam *tmp1 = sprite1;
+	const struct oam *tmp2 = sprite2;
+
+	return tmp1->x - tmp2->x;
+}
+
+static void sprites_load(Ppu *ppu)
+{
+	uint8_t ly = ppu->lcd->ly;	
+	uint8_t size = get_lcd_control(ppu->lcd, CTRL_OBJ_SIZE);
+
+	for (size_t i = 0; i < NUM_SPRITES; i++) {
+		if (ppu->num_sprites >= MAX_SPRITES_PER_LINE) {
+			break;
+		}
+
+		struct oam sprite = ppu->oam[i];
+		if (sprite.y > ly + 16 || sprite.y + size <= ly + 16) {
+			continue; // not on current line
+		}
+		if (0 == sprite.x) {
+			continue; // invisible
+		}
+		
+		ppu->sprites[ppu->num_sprites++] = sprite;
+	}
+	qsort(ppu->sprites, ppu->num_sprites, sizeof(struct oam),
+			sprites_sort);
+}
+
 // https://gbdev.io/pandocs/pixel_fifo.html
 static void ppu_mode_oam(Ppu *ppu)
 {
@@ -57,68 +96,195 @@ static void ppu_mode_oam(Ppu *ppu)
 
 	if (1 == ppu->line_ticks) {
 		// read OAM on the first tick
+		sprites_reset(ppu);
+		sprites_load(ppu);
+	}
+}
+
+static void fetch_bgw_tile_map(Emulator *emu)
+{
+	const Lcd *lcd = emu->ppu->lcd;
+	FetcherStateMachine *fsm = emu->ppu->fsm;
+	uint16_t addr = get_lcd_control(lcd, CTRL_BGW_MAP_AREA) + fsm->tile_id;
+	fsm->bgw_tile_map = bus_read(emu, addr);
+	if (0x8800 == get_lcd_control(lcd, CTRL_BGW_DATA_AREA)) {
+		// https://gbdev.io/pandocs/Tile_Data.html#vram-tile-data
+		fsm->bgw_tile_map += 128;
+	}
+}
+
+// returns how many pixels are actually visible (first 8 are used to scroll in)
+static int visible_x(const Lcd *lcd, uint8_t x)
+{
+	return (int)(x - (PIXELS - (lcd->scx % PIXELS)));
+}
+
+static void fetch_obj_tile_map(Ppu *ppu)
+{
+	const Lcd *lcd = ppu->lcd;
+	FetcherStateMachine *fsm = ppu->fsm;
+	int x = 0;
+	int dist = 0;
+	for (size_t i = 0; i < ppu->num_sprites; i++) {
+		x = visible_x(lcd, ppu->sprites[i].x);
+		dist = abs(x - fsm->x_fetched);
+		if ((dist >= 0) && (dist < PIXELS)) {
+			ppu->pixel_sprites[ppu->num_pixel_sprites++]
+				= ppu->sprites[i];
+		}
+
+		if (ppu->num_pixel_sprites >= MAX_SPRITES_PER_PIXEL) {
+			break;
+		}
 	}
 }
 
 static void fetch_tile_map(Emulator *emu)
 {
-	Lcd *lcd = emu->ppu->lcd;
+	const Lcd *lcd = emu->ppu->lcd;
 	FetcherStateMachine *fsm = emu->ppu->fsm;
-	if (!get_lcd_control(lcd, CTRL_BGW_ENABLE)) {
-		fsm->state = FFS_DATA0;
-		fsm->x_fetched += PIXELS;
-		return;
+	emu->ppu->num_pixel_sprites = 0;
+	if (get_lcd_control(lcd, CTRL_BGW_ENABLE)) {
+		fetch_bgw_tile_map(emu);
 	}
-	uint16_t addr = get_lcd_control(lcd, CTRL_BGW_MAP_AREA) + fsm->tile_id;
-	fsm->tile_map = bus_read(emu, addr);
-	if (0x8800 == get_lcd_control(lcd, CTRL_BGW_DATA_AREA)) {
-		// https://gbdev.io/pandocs/Tile_Data.html#vram-tile-data
-		fsm->tile_map += 128;
+
+	if (emu->ppu->num_sprites &&
+			get_lcd_control(lcd, CTRL_OBJ_ENABLE)) {
+		fetch_obj_tile_map(emu->ppu);
 	}
 	fsm->state = FFS_DATA0;
 	fsm->x_fetched += PIXELS;
 }
 
-static void fetch_tile_data(Emulator *emu, FifoFetcherState state)
+static void fetch_bgw_tile_data(Emulator *emu, FifoFetcherState state)
 {
-	Lcd *lcd = emu->ppu->lcd;
+	const Lcd *lcd = emu->ppu->lcd;
 	FetcherStateMachine *fsm = emu->ppu->fsm;
 	uint16_t addr = get_lcd_control(lcd, CTRL_BGW_DATA_AREA)
-		+ fsm->tile_map * 16 // each tile takes 16 bytes
+		+ fsm->bgw_tile_map * 16 // each tile takes 16 bytes
 		+ fsm->line_byte;
 
 	assert(addr < 0xa000);
 
 	if (FFS_DATA0 == state) {
-		fsm->tile_data0 = bus_read(emu, addr);
+		fsm->bgw_tile_data[0] = bus_read(emu, addr);
 		fsm->state = FFS_DATA1;
 	} else {
 		assert(FFS_DATA1 == state);
-		fsm->tile_data1 = bus_read(emu, addr + 1);
+		fsm->bgw_tile_data[1] = bus_read(emu, addr + 1);
 		fsm->state = FFS_IDLE;
 	}
 }
 
+static void fetch_obj_tile_data(Emulator *emu, FifoFetcherState state)
+{
+	const Lcd *lcd = emu->ppu->lcd;
+	Ppu *ppu = emu->ppu;
+	FetcherStateMachine *fsm = ppu->fsm;
+	uint16_t addr = 0;
+	uint8_t line_byte = 0;
+	uint8_t size = get_lcd_control(lcd, CTRL_OBJ_SIZE);
+	uint8_t tile_index = 0;
+
+	for (size_t i = 0; i < ppu->num_pixel_sprites; i++) {
+		line_byte = (lcd->ly + 16 - ppu->pixel_sprites[i].y) * 2;
+		if (BIT(ppu->pixel_sprites[i].flags, FLAG_Y_FLIP)) {
+			line_byte = (size * 2) - 2 - line_byte;
+		}
+		tile_index = ppu->pixel_sprites[i].tile;
+		if (16 == size) {
+			tile_index &= ~1; // remove last bit
+		}
+		addr = VRAM_ADDR + tile_index * 16 + line_byte;
+		if (FFS_DATA0 == state) {
+			fsm->oam_tile_data[i*2] = bus_read(emu, addr);
+		} else {
+			assert(FFS_DATA1 == state);
+			fsm->oam_tile_data[i*2 + 1] = bus_read(emu, addr + 1);
+		}
+	}
+}
+
+static void fetch_tile_data(Emulator *emu, FifoFetcherState state)
+{
+	fetch_bgw_tile_data(emu, state);
+	fetch_obj_tile_data(emu, state);
+}
+
+static uint32_t fetch_sprite_color(const Ppu *ppu, uint32_t color,
+		uint8_t bg_color)
+{
+	const Lcd *lcd = ppu->lcd;
+	const FetcherStateMachine *fsm = ppu->fsm;
+	int offset = 0; // where color goes in current tile
+	uint8_t flags = 0;
+	uint8_t hi = 0;
+	uint8_t lo = 0;
+	uint8_t data0 = 0;
+	uint8_t data1 = 0;
+	for (size_t i = 0; i < ppu->num_pixel_sprites; i++) {
+		flags = ppu->pixel_sprites[i].flags;
+		offset = ppu->fsm->x_fifo_pixels;
+		offset -= visible_x(lcd, ppu->pixel_sprites[i].x);
+
+		if (BIT(flags, FLAG_BGP) && 0 != bg_color) {
+			continue;
+		}
+		if (offset < 0 || offset >= PIXELS) {
+			continue;
+		}
+		if (BIT(flags, FLAG_X_FLIP)) {
+			offset = PIXELS - 1 - offset;
+		}
+		data0 = fsm->oam_tile_data[i * 2];
+		data1 = fsm->oam_tile_data[i * 2 + 1];
+		hi = (BIT(data1, PIXELS - 1 - offset) ? 1 : 0) << 1;
+		lo = (BIT(data0, PIXELS - 1 - offset) ? 1 : 0);
+		if (!(hi | lo)) {
+			continue;
+		}
+
+		if (BIT(flags, FLAG_PN)) {
+			color = lcd->sprite2_colors[hi | lo];
+		} else {
+			color = lcd->sprite1_colors[hi | lo];
+		}
+		break; // color found
+	}
+	return color;
+}
+
 static unsigned push_tile_data(Ppu *ppu)
 {
-	Lcd *lcd = ppu->lcd;
+	const Lcd *lcd = ppu->lcd;
 	FetcherStateMachine *fsm = ppu->fsm;
 	if (fsm->fetcher->size > PIXELS) {
 		// fifo is full
 		return 0;
 	}
 
-	if ((int)(fsm->x_fetched - (PIXELS - (lcd->scx % PIXELS))) < 0) {
-		// tiles on screen actually start at 8 pixels
+	if (visible_x(lcd, fsm->x_fetched) < 0) {
 		return 1;
 	}
 
 	uint8_t hi = 0;
 	uint8_t lo = 0;
+	uint8_t data0 = fsm->bgw_tile_data[0];
+	uint8_t data1 = fsm->bgw_tile_data[1];
+	uint32_t color = 0;
 	for (unsigned bit = 0; bit < PIXELS; bit++) {
-		hi = (BIT(fsm->tile_data1, PIXELS - 1 - bit) ? 1 : 0) << 1;
-		lo = (BIT(fsm->tile_data0, PIXELS - 1 - bit) ? 1 : 0);
-		fetcher_push(fsm->fetcher, lcd->bg_colors[hi | lo]);
+		hi = (BIT(data1, PIXELS - 1 - bit) ? 1 : 0) << 1;
+		lo = (BIT(data0, PIXELS - 1 - bit) ? 1 : 0);
+		color = lcd->bg_colors[hi | lo];
+		if (!get_lcd_control(lcd, CTRL_BGW_ENABLE)) {
+			color = lcd->bg_colors[0];
+		}
+
+		if (get_lcd_control(lcd, CTRL_OBJ_ENABLE)) {
+			color = fetch_sprite_color(ppu, color, hi | lo);
+		}
+		fetcher_push(fsm->fetcher, color);
+		fsm->x_fifo_pixels++;
 	}
 
 	return 1;
@@ -150,7 +316,7 @@ static void fetch_pixel_data(Emulator *emu)
 
 static void push_pixel_data(Ppu *ppu)
 {
-	Lcd *lcd = ppu->lcd;
+	const Lcd *lcd = ppu->lcd;
 	FetcherStateMachine *fsm = ppu->fsm;
 	/*
 	 * fetcher needs atleast 8 pixels to process next one.
@@ -174,7 +340,7 @@ static void push_pixel_data(Ppu *ppu)
 static void process_pixel_pipeline(Emulator *emu)
 {
 	Ppu *ppu = emu->ppu;
-	Lcd *lcd = ppu->lcd;
+	const Lcd *lcd = ppu->lcd;
 	FetcherStateMachine *fsm = ppu->fsm;
 	uint8_t map_x = (fsm->x_fetched + lcd->scx) / PIXELS;
 	uint8_t map_y = (lcd->ly + lcd->scy) / PIXELS;
