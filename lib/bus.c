@@ -78,6 +78,7 @@ void bus_write8(Emulator *emu, uint16_t addr, uint8_t data)
 	} else {
 		hram_write(addr, data);
 	}
+	emu_ticks(emu, TICKS_PER_CYCLE);
 }
 
 void bus_write16(Emulator *emu, uint16_t addr, uint16_t data)

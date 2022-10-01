@@ -6,6 +6,10 @@
 #include "timer.h"
 #include "ppu.h"
 
+enum {
+	TICKS_PER_CYCLE = 4,
+};
+
 typedef struct Emulator {
 	unsigned running;
 	unsigned playing;

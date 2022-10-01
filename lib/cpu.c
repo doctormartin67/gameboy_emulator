@@ -31,13 +31,14 @@ static unsigned is_8bit_reg(Reg reg)
 static uint8_t next_imm8(Emulator *emu)
 {
 	uint8_t imm = bus_read(emu, emu->cpu->regs.pc++);
+	emu_ticks(emu, TICKS_PER_CYCLE);
 	return imm;
 }
 
 static uint16_t next_imm16(Emulator *emu)
 {
-	uint16_t lo = bus_read(emu, emu->cpu->regs.pc++);
-	uint16_t hi = bus_read(emu, emu->cpu->regs.pc++);
+	uint16_t lo = next_imm8(emu);
+	uint16_t hi = next_imm8(emu);
 	return lo | HI_SHIFT(hi);
 }
 
@@ -309,6 +310,13 @@ static uint16_t get_rst_addr(OpKind kind)
 	}
 }
 
+static void jmp(Emulator *emu, uint16_t addr)
+{
+	Cpu *cpu = emu->cpu;
+	cpu->regs.pc = addr;
+	emu_ticks(emu, TICKS_PER_CYCLE);
+}
+
 static void op_jmp(Emulator *emu)
 {
 	Cpu *cpu = emu->cpu;
@@ -317,11 +325,12 @@ static void op_jmp(Emulator *emu)
 		case JP_IMM16:
 		case CALL_IMM16:
 			imm = next_imm16(emu);
-			cpu->regs.pc = imm;
+			jmp(emu, imm);
 			break;
 		case JP_ARR:
 			assert(REG_HL == cpu->op.reg1);
 			cpu->regs.pc = read_reg(cpu, cpu->op.reg1);
+			// no emu_cycles here, strange
 			break;
 		case JP_Z_IMM16:
 		case JP_C_IMM16:
@@ -329,8 +338,7 @@ static void op_jmp(Emulator *emu)
 		case JP_NC_IMM16:
 			imm = next_imm16(emu);
 			if (flag_cond_met(cpu)) {
-				cpu->regs.pc = imm;
-				emu_ticks(emu, 4);
+				jmp(emu, imm);
 			}
 			break;
 		case CALL_Z_IMM16:
@@ -339,13 +347,12 @@ static void op_jmp(Emulator *emu)
 		case CALL_NC_IMM16:
 			imm = next_imm16(emu);
 			if (flag_cond_met(cpu)) {
-				cpu->regs.pc = imm;
-				emu_ticks(emu, 12);
+				jmp(emu, imm);
 			}
 			break;
 		case JR_IMM8:
 			imm = next_imm8(emu);
-			cpu->regs.pc += (int8_t)imm;
+			jmp(emu, cpu->regs.pc + (int8_t)imm);
 			break;
 		case JR_Z_IMM8:
 		case JR_C_IMM8:
@@ -353,27 +360,26 @@ static void op_jmp(Emulator *emu)
 		case JR_NC_IMM8:
 			imm = next_imm8(emu);
 			if (flag_cond_met(cpu)) {
-				cpu->regs.pc += (int8_t)imm;
-				emu_ticks(emu, 4);
+				jmp(emu, cpu->regs.pc + (int8_t)imm);
 			}
 			break;
 		case RETI:
 			cpu->ime_flag = 1;
 			imm = stack_pop(emu);
-			cpu->regs.pc = imm;
+			jmp(emu, imm);
 			break;
 		case RET:
 			imm = stack_pop(emu);
-			cpu->regs.pc = imm;
+			jmp(emu, imm);
 			break;
 		case RET_Z:
 		case RET_C:
 		case RET_NZ:
 		case RET_NC:
 			if (flag_cond_met(cpu)) {
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				imm = stack_pop(emu);
-				cpu->regs.pc = imm;
-				emu_ticks(emu, 12);
+				jmp(emu, imm);
 			}
 			break;
 		case RST_00:
@@ -384,7 +390,7 @@ static void op_jmp(Emulator *emu)
 		case RST_18:
 		case RST_28:
 		case RST_38:
-			cpu->regs.pc = get_rst_addr(cpu->op.kind);
+			jmp(emu, get_rst_addr(cpu->op.kind));
 			break;
 		default:
 			assert(0);
@@ -705,11 +711,11 @@ static void op_cb(Emulator *emu)
 	uint8_t c = 0;
 
 	if (REG_HL == reg_kind) {
-		emu_ticks(emu, 16);
+		emu_ticks(emu, 12);
 		reg = bus_read(emu, reg);
 	} else {
 		assert(is_8bit_reg(reg_kind));
-		emu_ticks(emu, 8);
+		emu_ticks(emu, 4);
 	}
 
 	/*
@@ -1138,6 +1144,7 @@ void next_op(Emulator *emu)
 			break;
 	}
 	emu_ticks(emu, cpu->op.ticks);
+	emu_ticks(emu, TICKS_PER_CYCLE);
 }
 
 #if PRINT_STATUS

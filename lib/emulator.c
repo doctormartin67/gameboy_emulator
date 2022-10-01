@@ -25,10 +25,6 @@ void emu_kill(Emulator *emu)
 	free(emu);
 }
 
-enum {
-	TICKS_PER_CYCLE = 4,
-};
-
 void emu_ticks(Emulator *emu, unsigned ticks)
 {
 	unsigned cycles = ticks / TICKS_PER_CYCLE;

@@ -16,7 +16,9 @@ void stack_push(Emulator *emu, uint16_t data)
 
 static uint8_t stack_pop8(Emulator *emu)
 {
-	return bus_read(emu, emu->cpu->regs.sp++);
+	uint8_t byte = bus_read(emu, emu->cpu->regs.sp++);
+	emu_ticks(emu, TICKS_PER_CYCLE);
+	return byte;
 }
 
 uint16_t stack_pop(Emulator *emu)
