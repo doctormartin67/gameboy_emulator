@@ -62,16 +62,10 @@ LcdMode get_lcd_mode(const Lcd *lcd)
 
 void set_lcd_mode(Lcd *lcd, LcdMode mode)
 {
+	assert(mode < 0x4);
 	lcd->stat &= ~0x3;
 	lcd->stat |= mode;
 }
-#if 0
-
-static unsigned ly_flag_is_set(const Lcd *lcd)
-{
-	return BIT(lcd->stat, 2);
-}
-#endif
 
 unsigned lcd_stat_is_set(const Lcd *lcd, StatInt stat)
 {
