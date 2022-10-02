@@ -433,6 +433,7 @@ static void op_xor(Cpu *cpu, uint16_t val)
 	OP(^, cpu->op.reg1, 1, 3, 0, 0, 0, uint16_t);
 }
 
+// reg_kind == reg1
 static void op_add(Cpu *cpu, Reg reg_kind, uint16_t val)
 {
 	switch (reg_kind) {
@@ -508,7 +509,13 @@ static void op_inc(Emulator *emu)
 				OP(+, cpu->op.reg1, 1, 3, 0, 3, 2, uint16_t);
 				break;
 			}
-		case INC_RR: case LD_ARRI_R:
+		case INC_RR:
+			{
+				OP(+, cpu->op.reg1, 1, 2, 2, 2, 2, uint16_t);
+				emu_ticks(emu, TICKS_PER_CYCLE);
+				break;
+			}
+		case LD_ARRI_R:
 			{
 				OP(+, cpu->op.reg1, 1, 2, 2, 2, 2, uint16_t);
 				break;
@@ -516,6 +523,7 @@ static void op_inc(Emulator *emu)
 		case LD_R_ARRI:
 			{
 				OP(+, cpu->op.reg2, 1, 2, 2, 2, 2, uint16_t);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				break;
 			}
 		case INC_ARR:
@@ -525,6 +533,7 @@ static void op_inc(Emulator *emu)
 				uint16_t old_val = add_to_addr(emu, reg, 1);
 				set_flags(cpu, Z_FLAG(old_val, 1, +), 0,
 						H_FLAG(old_val, 1, +), 2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				break;
 			}
 		default:
@@ -543,7 +552,13 @@ static void op_dec(Emulator *emu)
 				OP(-, cpu->op.reg1, 1, 3, 1, 3, 2, uint16_t);
 				break;
 			}
-		case DEC_RR: case LD_ARRD_R:
+		case DEC_RR:
+			{
+				OP(-, cpu->op.reg1, 1, 2, 2, 2, 2, uint16_t);
+				emu_ticks(emu, TICKS_PER_CYCLE);
+				break;
+			}
+		case LD_ARRD_R:
 			{
 				OP(-, cpu->op.reg1, 1, 2, 2, 2, 2, uint16_t);
 				break;
@@ -551,6 +566,7 @@ static void op_dec(Emulator *emu)
 		case LD_R_ARRD:
 			{
 				OP(-, cpu->op.reg2, 1, 2, 2, 2, 2, uint16_t);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				break;
 			}
 		case DEC_ARR:
@@ -560,6 +576,7 @@ static void op_dec(Emulator *emu)
 				uint16_t old_val = add_to_addr(emu, reg, -1);
 				set_flags(cpu, Z_FLAG(old_val, 1, -), 1,
 						H_FLAG(old_val, 1, -), 2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				break;
 			}
 		default:
@@ -589,6 +606,7 @@ static void op_ld(Emulator *emu)
 		case LD_R_AIMM16:
 			imm = bus_read(emu, next_imm16(emu));
 			write_reg(cpu, cpu->op.reg1, imm);
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		case LD_AR_R:
 			reg1 = read_reg(cpu, cpu->op.reg1);
@@ -603,6 +621,7 @@ static void op_ld(Emulator *emu)
 		case LD_R_AR:
 			reg2 = 0xff00 | read_reg(cpu, cpu->op.reg2);
 			write_reg(cpu, cpu->op.reg1, bus_read(emu, reg2));
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		case LD_ARR_IMM8:
 			imm = next_imm8(emu);
@@ -633,6 +652,7 @@ static void op_ld(Emulator *emu)
 			break;
 		case LD_R_ARR:
 			write_reg_areg(emu);
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		case LD_R_ARRI:
 			write_reg_areg(emu);
@@ -650,10 +670,12 @@ static void op_ld(Emulator *emu)
 			write_reg(cpu, cpu->op.reg1, reg2 + (int8_t)imm);
 			set_flags(cpu, 0, 0, H_FLAG(reg2, imm, +),
 					C_FLAG(reg2, imm, +));
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		case LD_RR_RR:
 			reg2 = read_reg(cpu, cpu->op.reg2);
 			write_reg(cpu, cpu->op.reg1, reg2);
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		case LDH_AIMM8_R:
 			assert(REG_A == cpu->op.reg2);
@@ -666,6 +688,7 @@ static void op_ld(Emulator *emu)
 			assert(REG_A == cpu->op.reg1);
 			imm = 0xff00 | next_imm8(emu);
 			write_reg(cpu, cpu->op.reg1, bus_read(emu, imm));
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		default:
 			assert(0);
@@ -711,11 +734,10 @@ static void op_cb(Emulator *emu)
 	uint8_t c = 0;
 
 	if (REG_HL == reg_kind) {
-		emu_ticks(emu, 12);
 		reg = bus_read(emu, reg);
+		emu_ticks(emu, TICKS_PER_CYCLE);
 	} else {
 		assert(is_8bit_reg(reg_kind));
-		emu_ticks(emu, 4);
 	}
 
 	/*
@@ -951,15 +973,22 @@ void next_op(Emulator *emu)
 		case ADD_R_R:
 		case ADD_RR_RR:
 			op_add(cpu, cpu->op.reg1, read_reg(cpu, cpu->op.reg2));
+			if (!is_8bit_reg(cpu->op.reg1)) {
+				emu_ticks(emu, TICKS_PER_CYCLE);
+			}
 			break;
 		case ADD_R_IMM8:
 		case ADD_RR_IMM8:
 			op_add(cpu, cpu->op.reg1, next_imm8(emu));
+			if (!is_8bit_reg(cpu->op.reg1)) {
+				emu_ticks(emu, TICKS_PER_CYCLE);
+			}
 			break;
 		case ADD_R_ARR:
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				op_add(cpu, cpu->op.reg1, val);
 				break;
 			}
@@ -973,6 +1002,7 @@ void next_op(Emulator *emu)
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				op_sub(cpu, cpu->op.reg1, val);
 				break;
 			}
@@ -990,6 +1020,7 @@ void next_op(Emulator *emu)
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				op_adc(cpu, val);
 			}
 			break;
@@ -1006,6 +1037,7 @@ void next_op(Emulator *emu)
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				op_sbc(cpu, val);
 			}
 			break;
@@ -1028,6 +1060,7 @@ void next_op(Emulator *emu)
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				op_and(cpu, val);
 			}
 			break;
@@ -1044,6 +1077,7 @@ void next_op(Emulator *emu)
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				op_xor(cpu, val);
 			}
 			break;
@@ -1060,6 +1094,7 @@ void next_op(Emulator *emu)
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				op_or(cpu, val);
 			}
 			break;
@@ -1076,6 +1111,7 @@ void next_op(Emulator *emu)
 			{
 				uint16_t reg2 = read_reg(cpu, cpu->op.reg2);
 				uint16_t val = bus_read(emu, reg2);
+				emu_ticks(emu, TICKS_PER_CYCLE);
 				op_cp(cpu, val);
 			}
 			break;
@@ -1138,12 +1174,12 @@ void next_op(Emulator *emu)
 			break;
 		case PUSH_RR:
 			op_push(emu);
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		case RLCA_R: case RRCA_R: case RLA_R: case RRA_R:
 			op_rot(cpu);
 			break;
 	}
-	emu_ticks(emu, cpu->op.ticks);
 	emu_ticks(emu, TICKS_PER_CYCLE);
 }
 

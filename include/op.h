@@ -147,7 +147,6 @@ typedef struct Op {
 	OpKind kind;
 	Reg reg1;
 	Reg reg2;
-	unsigned ticks;
 } Op;
 
 Op get_op_from_opcode(uint8_t opcode);
