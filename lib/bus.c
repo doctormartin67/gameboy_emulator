@@ -52,6 +52,7 @@ uint8_t bus_read(const Emulator *emu, uint16_t addr)
 	}
 }
 
+extern unsigned hack;
 void bus_write8(Emulator *emu, uint16_t addr, uint8_t data)
 {
 	if (addr < VRAM_ADDR) {

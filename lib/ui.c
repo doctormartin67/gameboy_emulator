@@ -159,12 +159,7 @@ static void update_tiles(const Emulator *emu)
 			rc.w = SCALE;
 			rc.h = SCALE;
 
-			if (129 == y)
-				SDL_FillRect(surface, &rc, 0xff012345);
-			else if (134 == y)
-				SDL_FillRect(surface, &rc, 0xff012345);
-			else
-				SDL_FillRect(surface, &rc, lcd_buf[x + y * XRES]);
+			SDL_FillRect(surface, &rc, lcd_buf[x + y * XRES]);
 		}
 	}
 }

@@ -342,10 +342,10 @@ static void process_pixel_pipeline(Emulator *emu)
 	Ppu *ppu = emu->ppu;
 	const Lcd *lcd = ppu->lcd;
 	FetcherStateMachine *fsm = ppu->fsm;
-	uint8_t map_x = (fsm->x_fetched + lcd->scx) / PIXELS;
-	uint8_t map_y = (lcd->ly + lcd->scy) / PIXELS;
+	uint8_t map_x = (fsm->x_fetched + lcd->scx);
+	uint8_t map_y = (lcd->ly + lcd->scy);
 	// 32 because the VRAM has 32x32 tile maps
-	fsm->tile_id = map_x + map_y * 32;
+	fsm->tile_id = map_x / PIXELS + map_y / PIXELS * 32;
 	// 2 bytes per line, so this will have a value between 0-15
 	fsm->line_byte = ((lcd->ly + lcd->scy) % PIXELS) * 2;
 

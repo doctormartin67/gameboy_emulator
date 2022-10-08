@@ -331,6 +331,8 @@ static void op_jmp(Emulator *emu)
 			assert(REG_HL == cpu->op.reg1);
 			cpu->regs.pc = read_reg(cpu, cpu->op.reg1);
 			// no emu_cycles here, strange
+			// TODO remove if bug is found:
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		case JP_Z_IMM16:
 		case JP_C_IMM16:
