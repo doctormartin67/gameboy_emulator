@@ -6,7 +6,7 @@
 #include "transfer.h"
 #include "common.h"
 
-#define PRINT_STATUS 0
+#define PRINT_STATUS 1
 
 // https://gbdev.io/pandocs/CPU_Registers_and_Flags.html
 
@@ -310,7 +310,7 @@ static uint16_t get_rst_addr(OpKind kind)
 	}
 }
 
-static void jmp(Emulator *emu, uint16_t addr)
+void jmp(Emulator *emu, uint16_t addr)
 {
 	Cpu *cpu = emu->cpu;
 	cpu->regs.pc = addr;
@@ -377,10 +377,10 @@ static void op_jmp(Emulator *emu)
 		case RET_NZ:
 		case RET_NC:
 			if (flag_cond_met(cpu)) {
-				emu_ticks(emu, TICKS_PER_CYCLE);
 				imm = stack_pop(emu);
 				jmp(emu, imm);
 			}
+			emu_ticks(emu, TICKS_PER_CYCLE);
 			break;
 		case RST_00:
 		case RST_10:
@@ -732,6 +732,7 @@ static void op_cb(Emulator *emu)
 	uint16_t reg = read_reg(cpu, reg_kind);
 	uint16_t result = 0;
 	uint8_t c = 0;
+	emu_ticks(emu, TICKS_PER_CYCLE);
 
 	if (REG_HL == reg_kind) {
 		reg = bus_read(emu, reg);
@@ -752,6 +753,9 @@ static void op_cb(Emulator *emu)
 	switch (op_type) {
 		case 0x01: // BIT
 			set_flags(cpu, !BIT(reg, bit), 0, 1, 2);
+			if (REG_HL == reg_kind) {
+				emu_ticks(emu, TICKS_PER_CYCLE);
+			}
 			return;
 		case 0x02: // RES
 			result = reg & ~(1 << bit);
@@ -947,7 +951,7 @@ void next_op(Emulator *emu)
 			cpu->ime_flag = 0;
 			break;
 		case EI:
-			cpu->ime_flag = 1;
+			cpu->delay_interrupt = 1;
 			break;
 		case LD_R_R:
 		case LD_R_IMM8:

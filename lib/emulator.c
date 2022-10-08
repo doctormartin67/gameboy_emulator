@@ -43,21 +43,20 @@ void *cpu_run(void *p)
 	Emulator *emu = p;
 	while (emu->running) {
 		//if (emu->ticks >= 0x1a9dc8) (void)getchar();
-		//if (!(emu->ticks % 2048)) (void)getchar();
+		//if (!(emu->ticks % 8)) (void)getchar();
 		if (!emu->cpu->halted) {
 			print_status(emu);
 			next_op(emu);
 		} else {
 			emu_ticks(emu, TICKS_PER_CYCLE);
-			/* 
-			 * TODO: understand the below code, why should this
-			 * set it to false again?
-			 */
 			if (emu->cpu->if_reg) {
 				emu->cpu->halted = 0;
 			}
 		}
 		cpu_int_handler(emu);
+		if (emu->cpu->delay_interrupt) {
+			emu->cpu->ime_flag = 1;
+		}
 	}
 	return 0;
 }
@@ -114,4 +113,3 @@ void dma_tick(Emulator *emu)
 	ppu_oam_write(emu->ppu, dma->byte++, addr);
 	dma->transferring = dma->byte < 0xa0;
 }
-

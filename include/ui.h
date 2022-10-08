@@ -6,7 +6,7 @@
 
 // https://gbdev.io/pandocs/Tile_Data.html
 
-#define SCALE 3
+#define SCALE 4
 
 #define WINDOW_WIDTH 32 * PIXELS * SCALE
 #define WINDOW_HEIGHT 32 * PIXELS * SCALE

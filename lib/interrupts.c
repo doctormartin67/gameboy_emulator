@@ -4,10 +4,13 @@
 #include "emulator.h"
 #include "stack.h"
 
+// defined in cpu.c
+void jmp(Emulator *emu, uint16_t addr);
+
 static void int_handler(Emulator *emu, uint16_t addr)
 {
 	stack_push(emu, emu->cpu->regs.pc);
-	emu->cpu->regs.pc = addr;
+	jmp(emu, addr);
 }
 
 /*
@@ -43,4 +46,5 @@ void cpu_int_handler(Emulator *emu)
 	} else {
 		// ime flag set, but awaiting interrupt request
 	}
+	emu->cpu->delay_interrupt = 0;
 }

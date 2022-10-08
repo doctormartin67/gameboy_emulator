@@ -35,6 +35,7 @@ struct registers {
 typedef struct Cpu {
 	struct registers regs;
 	unsigned ime_flag; // interrupt master enable flag
+	unsigned delay_interrupt; // after EI there is a delay of 1 cycle
 	unsigned halted;
 	uint8_t ie_reg; // interrupt enable
 	uint8_t if_reg; // interrupt flag
