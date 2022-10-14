@@ -1,6 +1,7 @@
 #include <assert.h>
 #include "ui.h"
 #include "bus.h"
+#include "joypad.h"
 #include "common.h"
 
 static SDL_Window *window;
@@ -192,10 +193,48 @@ static void ui_kill(void)
 	SDL_Quit();
 }
 
+static void ui_handle_key(Emulator *emu, uint32_t key, unsigned is_down)
+{
+	switch (key) {
+		case SDLK_q:
+			emu->joypad.a = is_down;
+			break;
+		case SDLK_w:
+			emu->joypad.b = is_down;
+			break;
+		case SDLK_RETURN:
+			emu->joypad.start = is_down;
+			break;
+		case SDLK_TAB:
+			emu->joypad.select = is_down;
+			break;
+		case SDLK_UP:
+			emu->joypad.up = is_down;
+			break;
+		case SDLK_DOWN:
+			emu->joypad.down = is_down;
+			break;
+		case SDLK_LEFT:
+			emu->joypad.left = is_down;
+			break;
+		case SDLK_RIGHT:
+			emu->joypad.right = is_down;
+			break;
+	}
+}
+
 void ui_handle_events(Emulator *emu)
 {
 	SDL_Event e;
 	while (SDL_PollEvent(&e) > 0) {
+		if (SDL_KEYDOWN == e.type) {
+			ui_handle_key(emu, e.key.keysym.sym, 1);
+		}
+
+		if (SDL_KEYUP == e.type) {
+			ui_handle_key(emu, e.key.keysym.sym, 0);
+		}
+
 		if (SDL_WINDOWEVENT == e.type
 				&& SDL_WINDOWEVENT_CLOSE == e.window.event) {
 			emu->running = 0;

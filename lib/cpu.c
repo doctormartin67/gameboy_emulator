@@ -6,7 +6,7 @@
 #include "transfer.h"
 #include "common.h"
 
-#define PRINT_STATUS 1
+#define PRINT_STATUS 0
 
 // https://gbdev.io/pandocs/CPU_Registers_and_Flags.html
 

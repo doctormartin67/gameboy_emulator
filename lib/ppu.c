@@ -23,10 +23,27 @@ void free_ppu(Ppu *ppu)
 	free(ppu);
 }
 
+// https://gbdev.io/pandocs/Scrolling.html
+static unsigned window_is_visible(const Lcd *lcd)
+{
+	return get_lcd_control(lcd, CTRL_WINDOW_ENABLE)
+		&& lcd->wx <= 166 && lcd->wy <= YRES;
+}
+
+static unsigned drawing_window(const Lcd *lcd)
+{
+	return window_is_visible(lcd)
+		&& lcd->ly >= lcd->wy
+		&& lcd->ly < lcd->wy + YRES;
+}
+
 // https://gbdev.io/pandocs/pixel_fifo.html
-static void increment_ly(Cpu *cpu, Lcd *lcd) {
-	lcd->ly++;
-	set_ly_flag(cpu, lcd);
+static void increment_ly(Cpu *cpu, Ppu *ppu) {
+	if (drawing_window(ppu->lcd)) {
+		ppu->wy++;
+	}
+	ppu->lcd->ly++;
+	set_ly_flag(cpu, ppu->lcd);
 }
 
 static void update_fps(void)
@@ -79,7 +96,7 @@ static void sprites_load(Ppu *ppu)
 		if (0 == sprite.x) {
 			continue; // invisible
 		}
-		
+
 		ppu->sprites[ppu->num_sprites++] = sprite;
 	}
 	qsort(ppu->sprites, ppu->num_sprites, sizeof(struct oam),
@@ -101,12 +118,45 @@ static void ppu_mode_oam(Ppu *ppu)
 	}
 }
 
+static unsigned is_window_tile(const Ppu *ppu)
+{
+	const Lcd *lcd = ppu->lcd;
+	const FetcherStateMachine *fsm = ppu->fsm;
+	// TODO: figure out where this 14 comes from??
+	return lcd->wx - 7 <= fsm->x_fetched
+		&& lcd->wx - 7 + YRES > fsm->x_fetched - 14
+		&& lcd->ly >= lcd->wy
+		&& lcd->ly < lcd->wy + XRES;
+}
+
+static uint8_t get_w_tile_map(const Emulator *emu)
+{
+	const Ppu *ppu = emu->ppu;
+	const Lcd *lcd = ppu->lcd;
+	const FetcherStateMachine *fsm = ppu->fsm;
+	uint8_t tile_id = ppu->wy / PIXELS * 32
+		+ (fsm->x_fetched - (lcd->wx - 7)) / PIXELS;
+	uint16_t addr = get_lcd_control(lcd, CTRL_W_MAP_AREA) + tile_id;
+	return bus_read(emu, addr);
+}
+
+static uint8_t get_bg_tile_map(const Emulator *emu)
+{
+	const Lcd *lcd = emu->ppu->lcd;
+	const FetcherStateMachine *fsm = emu->ppu->fsm;
+	uint16_t addr = get_lcd_control(lcd, CTRL_BGW_MAP_AREA) + fsm->tile_id;
+	return bus_read(emu, addr);
+}
+
 static void fetch_bgw_tile_map(Emulator *emu)
 {
 	const Lcd *lcd = emu->ppu->lcd;
 	FetcherStateMachine *fsm = emu->ppu->fsm;
-	uint16_t addr = get_lcd_control(lcd, CTRL_BGW_MAP_AREA) + fsm->tile_id;
-	fsm->bgw_tile_map = bus_read(emu, addr);
+	if (is_window_tile(emu->ppu) && drawing_window(lcd)) {
+		fsm->bgw_tile_map = get_w_tile_map(emu);
+	} else {
+		fsm->bgw_tile_map = get_bg_tile_map(emu);
+	}
 	if (0x8800 == get_lcd_control(lcd, CTRL_BGW_DATA_AREA)) {
 		// https://gbdev.io/pandocs/Tile_Data.html#vram-tile-data
 		fsm->bgw_tile_map += 128;
@@ -380,7 +430,7 @@ static void ppu_mode_hblank(Cpu *cpu, Ppu *ppu)
 	if (LINE_TICKS > ppu->line_ticks) {
 		return;
 	}
-	increment_ly(cpu, ppu->lcd);
+	increment_ly(cpu, ppu);
 	if (YRES > ppu->lcd->ly) {
 		set_lcd_mode(ppu->lcd, MODE_OAM);
 	} else {
@@ -400,12 +450,13 @@ static void ppu_mode_vblank(Cpu *cpu, Ppu *ppu)
 	if (LINE_TICKS > ppu->line_ticks) {
 		return;
 	}
-	increment_ly(cpu, ppu->lcd);
+	increment_ly(cpu, ppu);
 	if (FRAME_LINES > ppu->lcd->ly) {
 		ppu->line_ticks = 0;
 	} else {
 		set_lcd_mode(ppu->lcd, MODE_OAM);
 		ppu->lcd->ly = 0;
+		ppu->wy = 0;
 		ppu->line_ticks = 0;
 	}
 }

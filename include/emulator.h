@@ -5,6 +5,7 @@
 #include "cartridge.h"
 #include "timer.h"
 #include "ppu.h"
+#include "joypad.h"
 
 enum {
 	TICKS_PER_CYCLE = 4,
@@ -18,6 +19,7 @@ typedef struct Emulator {
 	Cartridge *cart;
 	Timer *timer;
 	Ppu *ppu;
+	struct joypad joypad;
 } Emulator;
 
 int emu_main(int argc, char *argv[]);

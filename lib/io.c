@@ -3,6 +3,7 @@
 #include "io.h"
 #include "cpu.h"
 #include "lcd.h"
+#include "joypad.h"
 
 // https://gbdev.io/pandocs/Serial_Data_Transfer_(Link_Cable).html
 
@@ -10,7 +11,9 @@ static uint8_t serial_data[2];
 
 uint8_t io_read(const Emulator *emu, uint16_t addr)
 {
-	if (SB_ADDR == addr) {
+	if (JOYPAD_ADDR == addr) {
+		return joypad_read(&emu->joypad);
+	} else if (SB_ADDR == addr) {
 		return serial_data[0];
 	} else if (SC_ADDR == addr) {
 		return serial_data[1];
@@ -27,7 +30,10 @@ uint8_t io_read(const Emulator *emu, uint16_t addr)
 
 void io_write(Emulator *emu, uint16_t addr, uint8_t data)
 {
-	if (SB_ADDR == addr) {
+	if (JOYPAD_ADDR == addr) {
+		joypad_write(&emu->joypad, data);
+		return;
+	} else if (SB_ADDR == addr) {
 		serial_data[0] = data;
 		return;
 	} else if (SC_ADDR == addr) {

@@ -51,6 +51,7 @@ typedef struct Ppu {
 	struct oam pixel_sprites[MAX_SPRITES_PER_PIXEL];
 	size_t num_sprites; // 0 to 10 sprites per line
 	size_t num_pixel_sprites; // sprites in one pixel area (0-8 pixels)
+	uint8_t wy; // current line of the window
 } Ppu;
 
 _Static_assert(sizeof(struct oam) * NUM_SPRITES == 160,
