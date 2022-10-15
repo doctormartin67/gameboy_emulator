@@ -8,8 +8,9 @@ main
 # sed files created from make
 *.d
 
-# gameboy ROM files
+# gameboy ROM files (and saved files)
 *.gb
+*.gbs
 
 # ctags
 *tags

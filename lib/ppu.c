@@ -502,6 +502,7 @@ void ppu_oam_write(Ppu *ppu, uint16_t addr, uint8_t data)
 	assert(addr < sizeof(ppu->oam));
 	((uint8_t *)(ppu->oam))[addr] = data;
 }
+
 uint8_t ppu_vram_read(const Ppu *ppu, uint16_t addr)
 {
 	addr -= VRAM_ADDR;
@@ -509,6 +510,7 @@ uint8_t ppu_vram_read(const Ppu *ppu, uint16_t addr)
 	return ppu->vram[addr];
 
 }
+
 void ppu_vram_write(Ppu *ppu, uint16_t addr, uint8_t data)
 {
 	addr -= VRAM_ADDR;

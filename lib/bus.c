@@ -26,7 +26,7 @@ uint8_t bus_read(const Emulator *emu, uint16_t addr)
 {
 	if (addr < VRAM_ADDR) {
 		return cart_read(emu->cart, addr);
-	} else if (addr < 0xa000) {
+	} else if (addr < SRAM_ADDR) {
 		return ppu_vram_read(emu->ppu, addr);
 	} else if (addr < RAM_ADDR) {
 		return cart_read(emu->cart, addr);
@@ -56,7 +56,7 @@ extern unsigned hack;
 void bus_write8(Emulator *emu, uint16_t addr, uint8_t data)
 {
 	if (addr < VRAM_ADDR) {
-		printf("ERROR: Trying to write to ROM\n");
+		cart_write(emu->cart, addr, data);
 	} else if (addr < 0xa000) {
 		ppu_vram_write(emu->ppu, addr, data);
 	} else if (addr < RAM_ADDR) {

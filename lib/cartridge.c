@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include "cartridge.h"
 
@@ -120,6 +121,63 @@ static const char *get_cart_type(const Cartridge *cart)
 	return cart_types[type];
 }
 
+static size_t cart_num_banks(uint8_t ram_size)
+{
+	switch (ram_size) {
+		case 0x00:
+			return 0;
+		case 0x01:
+			assert(0);
+			return 0;
+		case 0x02:
+			return 1;
+		case 0x03:
+			return 4;
+		case 0x04:
+			return 16;
+		case 0x05:
+			return 8;
+		default:
+			assert(0);
+			break;
+	}
+}
+
+static void cart_init_banks(Cartridge *cart)
+{
+	size_t num_banks = cart_num_banks(cart->header->ram_size);
+	cart->ram_banks = calloc(num_banks, sizeof(*cart->ram_banks));
+
+	size_t size_ptr = sizeof(**cart->ram_banks);
+	for (size_t i = 0; i < num_banks; i++) {
+		cart->ram_banks[i] = calloc(SIZE_RAM_BANK, size_ptr);	
+	}
+
+	 cart->rom_bank_x = cart->rom_data + SWITCH_ROM_BANK_ADDR;
+	 cart->ram_bank = cart->ram_banks[0];
+}
+
+void cart_load_battery(Cartridge *cart)
+{
+	if (!cart->ram_bank) {
+		return;
+	}
+
+	size_t size_name = strlen(cart->file_name) + 1 + 1;
+	char *file_name = malloc(size_name);
+	snprintf(file_name, size_name, "%ss", cart->file_name);
+	FILE *fp = fopen(file_name, "rb");
+
+	if (!fp) {
+		fprintf(stderr, "FAILED TO OPEN: %s\n", file_name);
+		return;
+	}
+
+	fread(cart->ram_bank, SIZE_RAM_BANK, 1, fp);
+	fclose(fp);
+	free(file_name);
+}
+
 Cartridge *cart_load(const char *file_name)
 {
 	FILE *fp = fopen(file_name, "r");
@@ -131,7 +189,7 @@ Cartridge *cart_load(const char *file_name)
 		printf("Unexpected fseek error.\n");
 		exit(1);
 	}
-	Cartridge *cart = malloc(sizeof(*cart));
+	Cartridge *cart = calloc(1, sizeof(*cart));
 
 	cart->rom_size = ftell(fp);	
 	rewind(fp);
@@ -144,9 +202,11 @@ Cartridge *cart_load(const char *file_name)
 	cart->header = (struct cartridge_header *)(cart->rom_data + ENTR_ADDR);
 	size_t title_size = sizeof(cart->header->title);
 	cart->header->title[title_size - 1] = 0;
+	cart_init_banks(cart);
 	
 	cart->file_name = file_name;
 	fclose(fp);
+	cart_load_battery(cart);
 	return cart;
 }
 
@@ -186,17 +246,103 @@ void cart_print(const Cartridge *cart)
 	printf("checksum: %02x\n", cart->header->checksum);
 }
 
+static unsigned is_mbc1(uint8_t type)
+{
+	return 0x01 == type || 0x02 == type || 0x03 == type;
+}
+
+static unsigned cart_has_battery(uint8_t type)
+{
+	return 0x3 == type;
+}
+
+static uint8_t *switchable_rom_bank(uint8_t *rom_data, uint8_t data)
+{
+	data = !data ? 1 : data;
+	data &= 0x1f; // first 5 bits only count
+	return rom_data + SIZE_ROM_BANK * data;
+}
+
+void cart_save(const Cartridge *cart)
+{
+	if (!cart->ram_bank) {
+		return;
+	}
+
+	size_t size_name = strlen(cart->file_name) + 1 + 1;
+	char *file_name = malloc(size_name);
+	snprintf(file_name, size_name, "%ss", cart->file_name);
+	FILE *fp = fopen(file_name, "wb");
+
+	if (!fp) {
+		fprintf(stderr, "FAILED TO OPEN: %s\n", file_name);
+		return;
+	}
+
+	fwrite(cart->ram_bank, SIZE_RAM_BANK, 1, fp);
+	fclose(fp);
+	free(file_name);
+}
+
 uint8_t cart_read(const Cartridge *cart, uint16_t addr)
 {
-	assert(addr < cart->rom_size);
-	return cart->rom_data[addr];
+	if (!is_mbc1(cart->header->type) || addr < SWITCH_ROM_BANK_ADDR) {
+		assert(addr < cart->rom_size);
+		return cart->rom_data[addr];
+	}
+
+	if (addr >= SRAM_ADDR) {
+		if (!cart->ram_enabled || !cart->ram_bank) {
+			return 0xff;
+		}
+		addr -= SRAM_ADDR;
+		assert(addr < SIZE_RAM_BANK);
+		return cart->ram_bank[addr];
+	}
+
+	addr -= SWITCH_ROM_BANK_ADDR;
+	return cart->rom_bank_x[addr];
 }
 
 void cart_write(Cartridge *cart, uint16_t addr, uint8_t data)
 {
-	assert(addr < cart->rom_size);
-	(void)data;
-	assert(0);
+	if (!is_mbc1(cart->header->type)) {
+		return;
+	}
+
+	if (addr < RAM_ENABLE_ADDR) {
+		cart->ram_enabled = (data & 0xf) == 0xa;	
+	}
+
+	if (IS_ROM_BANK_NUMBER_ADDR(addr)) {
+		cart->rom_bank_x = switchable_rom_bank(cart->rom_data, data);
+	}
+
+	if (IS_RAM_BANK_NUMBER_ADDR(addr)) {
+		cart->ram_bank_nr = data & 0x3;
+		if (cart->ram_banking_enabled) {
+			cart->ram_bank = cart->ram_banks[cart->ram_bank_nr];
+		}
+	}
+
+	if (IS_BANKING_MODE_ADDR(addr)) {
+		cart->ram_banking_enabled = data & 0x1;
+		if (cart->ram_banking_enabled) {
+			cart->ram_bank = cart->ram_banks[cart->ram_bank_nr];
+		}
+	}
+
+	if (addr >= SRAM_ADDR) {
+		if (!cart->ram_enabled || !cart->ram_bank) {
+			return;
+		}
+		addr -= SRAM_ADDR;
+		cart->ram_bank[addr] = data;
+
+		if (cart_has_battery(cart->header->type)) {
+			cart_save(cart);
+		}
+	}
 }
 
 Cartridge *cart_init(const char *file_name)

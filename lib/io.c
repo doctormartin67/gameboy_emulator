@@ -21,6 +21,8 @@ uint8_t io_read(const Emulator *emu, uint16_t addr)
 		return timer_read(emu->timer, addr);
 	} else if (IF_ADDR == addr) {
 		return cpu_if_reg_read(emu->cpu);
+	} else if (IS_SOUND_ADDR(addr)) {
+		return sound_read(&emu->sound, addr);
 	} else if (IS_LCD_ADDR(addr)) {
 		return lcd_read(emu->ppu->lcd, addr);
 	}
@@ -44,6 +46,9 @@ void io_write(Emulator *emu, uint16_t addr, uint8_t data)
 		return;
 	} else if (IF_ADDR == addr) {
 		emu->cpu->if_reg = data;
+		return;
+	} else if (IS_SOUND_ADDR(addr)) {
+		sound_write(&emu->sound, addr, data);
 		return;
 	} else if (IS_LCD_ADDR(addr)) {
 		lcd_write(emu->ppu, addr, data);
